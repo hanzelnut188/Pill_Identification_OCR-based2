@@ -1,0 +1,173 @@
+/* 標準重設 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 全局樣式 */
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #cebba0;
+    padding: 10px;
+}
+
+.container {
+    text-align: center;
+    padding: 2vw; /* 使用視窗寬度的百分比 */
+    background: #c9b281;
+    box-shadow: 0 0.4vw 0.8vw rgba(0, 0, 0, 0.1); /* 使用視窗寬度的百分比 */
+    border-radius: 0.8vw; /* 使用視窗寬度的百分比 */
+    width: 80vw; /* 使用視窗寬度的百分比 */
+    max-width: 100%;
+    display: flex;
+    flex-direction: column; /* 讓內容垂直排列 */
+    align-items: center; /* 讓內容居中對齊 */
+    height: auto; /* 自動調整高度 */
+}
+
+#select{
+    font:700 15px Open Sans;
+  text-transform: uppercase;
+  position: relative;
+  color: #333333;
+  text-decoration: none;
+  border: 3px solid #000000;
+  background-color: white;
+  letter-spacing: 1px;
+  padding: 3px 15px 3px 5px;
+  margin-left: 12%;
+  display: block;
+  z-index: 5000;
+}
+
+#select.hover{
+    background-color: rgb(69, 43, 26); 
+    transition: 0.3s ease;
+}
+
+#title {
+    font-family: monospace;
+    font-size: 20px;
+    font-weight: bold;
+    color: #472601;
+    text-align: center;
+    background-color: rgb(255, 243, 212);
+    padding: 10px;
+    clear: both;
+  }
+  
+.selection-container {
+    display: flex;
+    justify-content: space-between; /* 控制項目之間的間距 */
+    align-items: center;
+    gap: 10px; /* 設定項目之間的間隔 */
+    margin-top: 20px;
+}
+
+/* 視頻樣式 */
+video {
+    border: 0.2vw solid #333; /* 使用視窗寬度的百分比 */
+    border-radius: 1vw; /* 使用視窗寬度的百分比 */
+    max-width: 90%;
+    max-height: 60vh; /* 使用視窗高度的百分比 */
+    margin-bottom: 2vw; /* 添加下邊距讓元素之間有間距 */
+}
+
+.btn-14,
+.btn-14 *,
+.btn-14 :after,
+.btn-14 :before,
+.btn-14:after,
+.btn-14:before {
+  border: 0 solid;
+  box-sizing: border-box;
+}
+.btn-14 {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: button;
+  background-color: #000;
+  background-image: none;
+  color: #000000;
+  cursor: pointer;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, sans-serif,
+    Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+  font-size: 100%;
+  font-weight: bold;
+  font-color: black;
+  font-weight: 900;
+  line-height: 1.5;
+  margin: 0;
+  -webkit-mask-image: -webkit-radial-gradient(#000, #fff);
+  padding: 0;
+  text-transform: uppercase;
+}
+.btn-14:disabled {
+  cursor: default;
+}
+.btn-14:-moz-focusring {
+  outline: auto;
+}
+.btn-14 svg {
+  display: block;
+  vertical-align: middle;
+}
+.btn-14 [hidden] {
+  display: none;
+}
+.btn-14 {
+  background: #fff;
+  border-radius: 99rem;
+  border-width: 2px;
+  -webkit-mask-image: none;
+  overflow: hidden;
+  margin: 10px;
+  margin-left: 12%;
+  padding: 0.6rem 2rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-14 span {
+  mix-blend-mode: difference;
+  text-align: center;
+}
+.btn-14:hover {
+  box-shadow: 0 20px 100px 1px hsla(0, 0%, 100%, 0.2);
+  transform: translateY(-4px);
+  will-change: box-shadow, transform;
+}
+
+.window-size {
+    margin-top: 2vw;
+    font-size: 2vw; /* 使用視窗寬度的百分比 */
+    color: #333;
+}
+
+/* 響應式設計 */
+@media (min-width: 320px) {
+    .container {
+        width: 90%;
+    }
+}
+
+@media (min-width: 640px) {
+    .container {
+        width: 70%;
+    }
+}
+
+@media (min-width: 960px) {
+    .container {
+        width: 60%;
+    }
+}
+
+@media (min-width: 1280px) {
+    .container {
+        width: 50%;
+    }
+}
