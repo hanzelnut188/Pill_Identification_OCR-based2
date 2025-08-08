@@ -1,15 +1,16 @@
 # 初始化 OpenOCR 引擎
 import base64
-
 from openocr import OpenOCR
 import logging
-
+import cv2
 from app.utils.image_io import read_image_safely
+from rembg import remove
+
+from ultralytics import YOLO
+import torch
 
 logging.getLogger("openrec").setLevel(logging.ERROR)
 ocr_engine = OpenOCR(backend='onnx', device='cpu')
-# ocr_engine = OpenOCR(backend="onnx", det_model_path="models/openocr_det_model.onnx", rec_model_path="models/openocr_rec_model.onnx")
-
 
 from app.utils.ocr_utils import recognize_with_openocr
 from app.utils.shape_color_utils import (
@@ -31,9 +32,6 @@ from pillow_heif import register_heif_opener
 
 register_heif_opener()
 
-
-
-import cv2
 
 ####
 
@@ -74,8 +72,6 @@ def get_best_ocr_texts(image_versions, angles=[0, 45, 90, 135, 180, 225, 270, 31
     return version_results[best_name], best_name, score_dict[best_name]
 
 
-# def fallback_rembg_bounding(img_path):
-# input_img = read_image_safely(img_path)
 def fallback_rembg_bounding(input_img):
     if input_img is None:
         # print(f"❌ fallback: 無法讀取圖片：{img_path}")#註解SSS
@@ -108,11 +104,6 @@ def fallback_rembg_bounding(input_img):
 
     return None, None
 
-
-from rembg import remove
-
-from ultralytics import YOLO
-import torch
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 _det_model = None
@@ -153,7 +144,6 @@ def _pick_crop_from_boxes(input_img, boxes):
 
 
 def process_image(img_path: str):
-
     det_model = get_det_model()
     """
     單張藥品圖片辨識流程（本地 YOLOv8 + OpenOCR + 顏色外型分析）
