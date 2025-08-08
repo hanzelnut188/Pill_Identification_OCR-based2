@@ -1,4 +1,6 @@
 # 初始化 OpenOCR 引擎
+import base64
+
 from openocr import OpenOCR
 import logging
 
@@ -23,29 +25,15 @@ from app.utils.shape_color_utils import (
 
 from matplotlib.font_manager import FontProperties
 
-
 zh_font = FontProperties(fname="/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
-
 
 from pillow_heif import register_heif_opener
 
 register_heif_opener()
 
-from inference_sdk import InferenceHTTPClient
+
 
 import cv2
-
-from rembg import remove
-from ultralytics import YOLO
-det_model = YOLO("/path/to/best.pt")
-
-CLIENT = InferenceHTTPClient(
-    api_url="https://detect.roboflow.com",
-    api_key="SOlzinVqG2xuWsPUUGRp"
-    # api_key="kylIYUWNLWHPy2RXUVOe"
-)
-MODEL_ID = "pill-detection-poc-i0b3g/1"
-
 
 ####
 
@@ -86,55 +74,6 @@ def get_best_ocr_texts(image_versions, angles=[0, 45, 90, 135, 180, 225, 270, 31
     return version_results[best_name], best_name, score_dict[best_name]
 
 
-def get_bbox_from_rembg_alpha(img_path):
-    input_img = cv2.imread(img_path)
-    rembg_img = remove(input_img)
-
-    if rembg_img.shape[2] == 4:
-        alpha = rembg_img[:, :, 3]
-        alpha = cv2.GaussianBlur(alpha, (5, 5), 0)
-        _, mask = cv2.threshold(alpha, 50, 255, cv2.THRESH_BINARY)
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        if contours:
-            x, y, w, h = cv2.boundingRect(max(contours, key=cv2.contourArea))
-            return rembg_img, (x, y, w, h)  # ➜ return cropped image & bounding box
-    return None, None
-
-
-# === 模組化：從完整圖片與偵測框中擷取藥物區域 ===
-# def extract_pill_region(img_path, detection_result, margin=10):
-def extract_pill_region(input_img, detection_result, margin=10):
-    #    input_img = read_image_safely(img_path)
-    if input_img is None:
-        # print(f"❌ extract_pill_region: 無法讀取圖片：{img_path}")#註解SSS
-        return None, None
-
-    try:
-        h_img, w_img = input_img.shape[:2]
-        cx, cy = detection_result["x"], detection_result["y"]
-        bw, bh = detection_result["width"], detection_result["height"]
-
-        x0 = max(0, int(cx - bw / 2) - margin)
-        y0 = max(0, int(cy - bh / 2) - margin)
-        x1 = min(w_img, int(cx + bw / 2) + margin)
-        y1 = min(h_img, int(cy + bh / 2) + margin)
-
-        cropped_original = input_img[y0:y1, x0:x1]
-
-        try:
-            cropped_removed = remove(cropped_original)
-        except Exception as e:
-            # print(f"❌ rembg 去背失敗：{e}")#註解SSS
-            return cropped_original, None
-
-        return cropped_original, cropped_removed
-
-    except Exception as e:
-        # print(f"❗ extract_pill_region 錯誤：{e}")#註解SSS
-        return None, None
-
-
 # def fallback_rembg_bounding(img_path):
 # input_img = read_image_safely(img_path)
 def fallback_rembg_bounding(input_img):
@@ -170,49 +109,82 @@ def fallback_rembg_bounding(input_img):
     return None, None
 
 
-
+from rembg import remove
 
 from ultralytics import YOLO
+import torch
 
-# ✅ 全域載入本地 YOLO 模型（請提前初始化一次）
-det_model = YOLO("/path/to/best.pt")  # 替換成你的 Roboflow 匯出 .pt 路徑
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+_det_model = None
+
+
+def get_det_model():
+    global _det_model
+    if _det_model is None:
+        m = YOLO("models/best.pt")
+        try:
+            m.fuse()
+        except Exception:
+            pass
+        _det_model = m
+    return _det_model
+
+
+def _pick_crop_from_boxes(input_img, boxes):
+    """從 YOLO boxes 選最佳框並做 padding、回傳裁切圖"""
+    xyxy = boxes.xyxy.cpu().numpy()  # [N,4]
+    conf = boxes.conf.squeeze().cpu().numpy()  # [N,] 或 scalar
+    conf = conf if conf.ndim else conf[None]  # 保證是一維
+    areas = (xyxy[:, 2] - xyxy[:, 0]) * (xyxy[:, 3] - xyxy[:, 1])
+    score = conf * (areas / (areas.max() + 1e-6))  # 面積加權，避免挑到超小但高 conf 的框
+    best_idx = score.argmax()
+    x1, y1, x2, y2 = map(int, xyxy[best_idx])
+    # 以框大小做 padding（8%）
+    bw, bh = x2 - x1, y2 - y1
+    pad = int(0.08 * max(bw, bh))
+    h, w = input_img.shape[:2]
+    x1 = max(0, x1 - pad);
+    y1 = max(0, y1 - pad)
+    x2 = min(w - 1, x2 + pad);
+    y2 = min(h - 1, y2 + pad)
+    cropped_original = input_img[y1:y2, x1:x2]
+    cropped_removed = remove(cropped_original)
+    return cropped_original, cropped_removed
 
 
 def process_image(img_path: str):
+
+    det_model = get_det_model()
     """
     單張藥品圖片辨識流程（本地 YOLOv8 + OpenOCR + 顏色外型分析）
     """
-    from PIL import Image
-    import base64
-
     # === 讀取圖片 ===
     input_img = read_image_safely(img_path)
     if input_img is None:
         return {"error": "無法讀取圖片"}
 
-    # === 使用本地 YOLO 模型進行推論 ===
-    results = det_model(input_img)
+    # === YOLO 偵測（先正常閾值，失敗再降閾值）===
+    res = det_model.predict(source=input_img, imgsz=640, conf=0.25, iou=0.7,
+                            device=DEVICE, verbose=False)[0]
+    boxes = res.boxes
 
-    # === 處理 YOLO 偵測結果 ===
-    preds = results[0].boxes
-    if preds and len(preds) > 0:
-        # 取最大框（信心分數最高的）
-        boxes = preds.xyxy.cpu().numpy()  # [x1, y1, x2, y2]
-        best_idx = preds.conf.argmax().item()
-        box = boxes[best_idx]
-        x1, y1, x2, y2 = map(int, box)
-        cropped_original = input_img[y1:y2, x1:x2]
-        cropped_removed = remove(cropped_original)  # 仍使用 rembg 去背
+    if boxes is not None and boxes.xyxy.shape[0] > 0:
+        cropped_original, cropped_removed = _pick_crop_from_boxes(input_img, boxes)
     else:
-        # YOLO 偵測不到 ➜ fallback
-        cropped_original, cropped_removed = fallback_rembg_bounding(input_img)
-        if cropped_removed is None:
-            return {"error": "藥品擷取失敗"}
+        res_lo = det_model.predict(source=input_img, imgsz=640, conf=0.10, iou=0.7,
+                                   device=DEVICE, verbose=False)[0]
+        boxes_lo = res_lo.boxes
+        if boxes_lo is not None and boxes_lo.xyxy.shape[0] > 0:
+            cropped_original, cropped_removed = _pick_crop_from_boxes(input_img, boxes_lo)
+        else:
+            # 最後才走 rembg fallback
+            cropped_original, cropped_removed = fallback_rembg_bounding(input_img)
+            if cropped_removed is None:
+                return {"error": "藥品擷取失敗"}
 
-    # === 裁切圖轉 Base64 給前端展示 ===
-    _, buffer = cv2.imencode(".jpg", cropped_original)
-    cropped_base64 = base64.b64encode(buffer).decode("utf-8")
-    cropped_base64 = f"data:image/jpeg;base64,{cropped_base64}"
+    # === 裁切圖轉 Base64（給前端顯示） ===
+    ok, buffer = cv2.imencode(".jpg", cropped_original)
+    cropped_b64 = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}" if ok else None
 
     # === 外型、顏色分析 ===
     shape, _ = detect_shape_from_image(cropped_removed, cropped_original, expected_shape=None, debug=False)
@@ -222,11 +194,11 @@ def process_image(img_path: str):
     image_versions = generate_image_versions(cropped_removed)
     best_texts, best_name, best_score = get_best_ocr_texts(image_versions, ocr_engine=ocr_engine)
 
-    print("文字辨識：" + str(best_texts if best_texts else ["None"]))
-    print("最佳版本：" + str(best_name))
-    print("信心分數：" + str(round(best_score, 3)))
-    print("顏色：" + str(colors))
-    print("外型：" + str(shape))
+    print("文字辨識：", best_texts if best_texts else ["None"])
+    print("最佳版本：", best_name)
+    print("信心分數：", round(best_score, 3))
+    print("顏色：", colors)
+    print("外型：", shape)
 
     return {
         "文字辨識": best_texts if best_texts else ["None"],
@@ -234,6 +206,6 @@ def process_image(img_path: str):
         "信心分數": round(best_score, 3),
         "顏色": colors,
         "外型": shape,
-        "cropped_image": cropped_base64
-    }
 
+        "cropped_image": cropped_b64
+    }
