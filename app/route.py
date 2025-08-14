@@ -17,8 +17,8 @@ register_heif_opener()
 UPLOAD_FOLDER = "uploads/"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
-app = Flask(__name__)
-CORS(app)
+# app = Flask(__name__)
+# CORS(app)
 df = pd.read_excel("data/TESTData.xlsx")
 color_dict = {
     '白色': [1, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 17, 18, 19, 23, 24, 25, 28, 29, 30, 35, 36, 38, 39, 40, 43, 45, 46, 47,
@@ -219,5 +219,5 @@ def healthz():
     return "ok", 200
 
 
-if __name__ == "__main__":
-    app.run(debug=True, port=8001)
+# if __name__ == "__main__":
+#     app.run(debug=True, port=8001)
