@@ -19,6 +19,8 @@
 #
 #     return app
 from flask import Flask, send_from_directory
+from flask_cors import CORS
+
 from app.route import index, upload_image, match_drug
 import os
 import traceback
@@ -30,6 +32,7 @@ def create_app():
 
     try:
         app = Flask(__name__)
+        CORS(app)
         app.config["UPLOAD_FOLDER"] = os.path.abspath("uploads")
         print(f"🟢 [DEBUG] 設定上傳路徑為：{app.config['UPLOAD_FOLDER']}")
 
@@ -37,6 +40,8 @@ def create_app():
         app.add_url_rule("/", "/", index)
         app.add_url_rule("/upload", "upload", upload_image, methods=["POST"])
         app.add_url_rule("/match", "match", match_drug, methods=["POST"])
+        app.add_url_rule("/healthz", "healthz", lambda: ("OK", 200))
+
         print("🟢 [DEBUG] 路由註冊成功")
 
         # 靜態檔案提供（上傳圖片存取）
