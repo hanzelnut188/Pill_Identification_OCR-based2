@@ -9,10 +9,14 @@
 #     app.run(debug=False, use_reloader=False, port=8001, host="0.0.0.0")
 #
 import os
+
+import os
 from app import create_app
 
 app = create_app()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # ✅ Render 會自動提供 PORT 環境變數
+    port = int(os.environ.get("PORT", 10000))  # Render 會提供 PORT
+    print(f"🟢 正在啟動 Flask on port {port}")
     app.run(host="0.0.0.0", port=port)
+
