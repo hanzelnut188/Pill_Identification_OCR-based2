@@ -184,11 +184,11 @@ def process_image(img_path: str):
     image_versions = generate_image_versions(cropped_removed)
     best_texts, best_name, best_score = get_best_ocr_texts(image_versions, ocr_engine=ocr_engine)
 
-    print("文字辨識：", best_texts if best_texts else ["None"])
-    print("最佳版本：", best_name)
-    print("信心分數：", round(best_score, 3))
-    print("顏色：", colors)
-    print("外型：", shape)
+    # print("文字辨識：", best_texts if best_texts else ["None"])
+    # print("最佳版本：", best_name)
+    # print("信心分數：", round(best_score, 3))
+    # print("顏色：", colors)
+    # print("外型：", shape)
 
     return {
         "文字辨識": best_texts if best_texts else ["None"],

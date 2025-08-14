@@ -10,7 +10,8 @@ onnxruntime
 numpy==1.24.4
 opencv-python==4.6.0.66
 opencv-contrib-python==4.6.0.66  # 若你有用到 SIFT/SURF 等擴充模組就加這行
-
+flask
+gunicorn
 
 pillow
 pillow-heif              # ✅ 可讀 HEIC
