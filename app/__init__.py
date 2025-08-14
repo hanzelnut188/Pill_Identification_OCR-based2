@@ -23,6 +23,8 @@ from app.route import index, upload_image, match_drug
 import os
 import traceback
 
+import sys#可刪
+print("🔍 create_app 開始", file=sys.stderr, flush=True)#可刪
 def create_app():
     print("🟡 [DEBUG] create_app() 開始初始化應用程式...")
 

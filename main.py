@@ -8,11 +8,12 @@
 #     # app.run(debug=True, port=8001, host="0.0.0.0")
 #     app.run(debug=False, use_reloader=False, port=8001, host="0.0.0.0")
 #
-import os
+
 
 import os
 from app import create_app
-
+import sys#可刪
+print("🚀 啟動主程式 main.py", file=sys.stderr, flush=True)#可刪
 app = create_app()
 
 if __name__ == "__main__":
