@@ -214,6 +214,10 @@ def match_drug():
         traceback.print_exc()
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
+@app.route("/healthz", methods=["GET"])
+def healthz():
+    return "ok", 200
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=8001)
