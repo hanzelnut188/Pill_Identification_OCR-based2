@@ -1,6 +1,5 @@
 # 模型推論
-#openocr-python
-git+https://github.com/openrec/openocr.git
+openocr-python
 
 onnxruntime
 
