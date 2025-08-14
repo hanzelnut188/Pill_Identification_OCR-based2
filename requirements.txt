@@ -22,7 +22,7 @@ rembg
 matplotlib
 scikit-learn
 pandas
-
+flask-cors
 # Roboflow SDK
 #inference-sdk
 
