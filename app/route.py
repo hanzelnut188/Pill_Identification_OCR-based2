@@ -1,18 +1,24 @@
 import pandas as pd
-from flask import Blueprint, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import base64, tempfile, os, openpyxl, shutil
+import base64
+import tempfile
+import os
+import openpyxl
 
 from app.utils.matcher import match_ocr_to_front_back_by_permuted_ocr
 from app.utils.pill_detection import process_image
 from io import BytesIO
 from pillow_heif import register_heif_opener
 from PIL import Image, UnidentifiedImageError
+import shutil
 
 register_heif_opener()
-bp = Blueprint("main", __name__)
+UPLOAD_FOLDER = "uploads/"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
+app = Flask(__name__)
+CORS(app)
 df = pd.read_excel("data/TESTData.xlsx")
 color_dict = {
     '白色': [1, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 17, 18, 19, 23, 24, 25, 28, 29, 30, 35, 36, 38, 39, 40, 43, 45, 46, 47,
@@ -64,12 +70,11 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@bp.route("/")
 def index():
     return render_template("index.html")
 
 
-@bp.post("/upload")
+@app.route("/upload", methods=["POST"])
 def upload_image():
     if not request.is_json:
         return jsonify({"error": "Invalid content type. JSON expected."}), 415
@@ -125,7 +130,7 @@ def safe_get(row, key):
     return str(val).strip()
 
 
-@bp.post("/match")
+@app.route("/match", methods=["POST"])
 def match_drug():
     try:
         data = request.get_json()
@@ -133,7 +138,7 @@ def match_drug():
         colors = data.get("colors", [])
         shape = data.get("shape", "")
 
-        # print("Received data:", texts, colors, shape)
+        print("Received data:", texts, colors, shape)
 
         # === [1] 先用顏色聯集篩選所有可能藥物 ===
         candidates = set()
@@ -147,7 +152,7 @@ def match_drug():
         if not candidates:
             return jsonify({"error": "找不到符合顏色與外型的藥品"}), 404
 
-        # print("候選用量排序:", candidates)
+        print("候選用量排序:", candidates)
         df_sub = df[df["用量排序"].isin(candidates)]
 
         # === [3] 判斷是否有文字辨識結果 ===
@@ -177,7 +182,7 @@ def match_drug():
 
         # === [4] 有文字 → 走原本 LCS 比對流程 ===
         match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
-        # print("match_result =", match_result)
+        print("match_result =", match_result)
 
         # 取最佳匹配 row
         front_row = match_result.get("front", {}).get("row")
@@ -210,5 +215,5 @@ def match_drug():
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 
-def healthz():
-    return "ok", 200
+if __name__ == "__main__":
+    app.run(debug=True, port=8001)
