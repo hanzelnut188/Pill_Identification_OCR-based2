@@ -15,9 +15,9 @@ from app import create_app
 import sys#可刪
 print("🚀 啟動主程式 main.py", file=sys.stderr, flush=True)#可刪
 app = create_app()
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Render 會提供 PORT
-    print(f"🟢 正在啟動 Flask on port {port}")
-    app.run(host="0.0.0.0", port=port)
+#
+# if __name__ == "__main__":
+#     port = int(os.environ.get("PORT", 10000))  # Render 會提供 PORT
+#     print(f"🟢 正在啟動 Flask on port {port}")
+#     app.run(host="0.0.0.0", port=port)
 
