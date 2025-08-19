@@ -16,7 +16,7 @@
 #     return app
 # app/__init__.py - 基本版本
 # app/__init__.py - 加入數據載入測試
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 import os
 
@@ -36,7 +36,7 @@ def create_app():
 
     @app.route("/")
     def index():
-        return f"App with data loading! Status: {data_status}"
+        return render_template("index.html")
 
     @app.route("/healthz")
     def healthz():
