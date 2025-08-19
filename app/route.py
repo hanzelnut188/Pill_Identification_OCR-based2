@@ -1,6 +1,6 @@
 import pandas as pd
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
+from flask import request, jsonify, render_template
+
 import base64
 import tempfile
 import os

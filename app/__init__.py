@@ -45,5 +45,7 @@ def create_app():
     @app.route("/data-status")
     def data_status_route():
         return {"status": data_status}
+    from app.route import register_routes  # ✅ 放在 create_app 開頭
+    register_routes(app)  # ✅ 加在 return app 前
 
     return app
