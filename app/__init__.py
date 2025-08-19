@@ -251,6 +251,28 @@ def create_app():
     except Exception as e:
         print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
+        @app.route("/debug")
+    def debug():
+        info = {
+            "cwd": os.getcwd(),
+            "template_folder": app.template_folder,
+            "template_path_exists": os.path.exists(app.template_folder),
+            "files_in_template_folder": [],
+            "static_folder": app.static_folder,
+            "static_path_exists": os.path.exists(app.static_folder),
+            "files_in_static_folder": []
+        }
+        try:
+            info["files_in_template_folder"] = os.listdir(app.template_folder)
+        except Exception as e:
+            info["files_in_template_folder"] = [f"Error: {str(e)}"]
+
+        try:
+            info["files_in_static_folder"] = os.listdir(app.static_folder)
+        except Exception as e:
+            info["files_in_static_folder"] = [f"Error: {str(e)}"]
+
+        return info
 
     @app.route("/data-status")
     def data_status_route():
