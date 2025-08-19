@@ -138,7 +138,7 @@ def match_drug():
         colors = data.get("colors", [])
         shape = data.get("shape", "")
 
-        #print("Received data:", texts, colors, shape)
+        print("Received data:", texts, colors, shape)
 
         # === [1] 先用顏色聯集篩選所有可能藥物 ===
         candidates = set()
@@ -152,7 +152,7 @@ def match_drug():
         if not candidates:
             return jsonify({"error": "找不到符合顏色與外型的藥品"}), 404
 
-        #print("候選用量排序:", candidates)
+        print("候選用量排序:", candidates)
         df_sub = df[df["用量排序"].isin(candidates)]
 
         # === [3] 判斷是否有文字辨識結果 ===
@@ -182,7 +182,7 @@ def match_drug():
 
         # === [4] 有文字 → 走原本 LCS 比對流程 ===
         match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
-        #print("match_result =", match_result)
+        print("match_result =", match_result)
 
         # 取最佳匹配 row
         front_row = match_result.get("front", {}).get("row")
@@ -213,10 +213,6 @@ def match_drug():
         import traceback
         traceback.print_exc()
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
-
-@app.route("/healthz", methods=["GET"])
-def healthz():
-    return "ok", 200
 
 
 if __name__ == "__main__":
