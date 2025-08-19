@@ -6,7 +6,6 @@
 # if __name__ == "__main__":
 #     port = int(os.environ.get("PORT", 10000))
 #     app.run(host="0.0.0.0", port=port, debug=False)
-# main.py - 簡化測試版
 # 步驟 1：恢復應用工廠模式
 # main.py
 import os
