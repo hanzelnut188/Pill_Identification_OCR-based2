@@ -251,7 +251,7 @@ def create_app():
     except Exception as e:
         print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
-        @app.route("/debug")
+    @app.route("/debug")
     def debug():
         info = {
             "cwd": os.getcwd(),
