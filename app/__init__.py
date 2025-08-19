@@ -1,17 +1,16 @@
-from flask import Flask, send_from_directory
+# app/__init__.py
+
+from flask import Flask
 from flask_cors import CORS
+from app.route import register_routes  # ✅ 改成匯入 register_routes 函數
 import os
-from app.route import register_routes  # 改為導入函數！
 
 def create_app():
     app = Flask(__name__)
     CORS(app)
-
     app.config["UPLOAD_FOLDER"] = os.path.abspath("uploads")
-    register_routes(app)
 
-    @app.route("/uploads/<filename>")
-    def uploaded_file(filename):
-        return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    # ✅ 註冊所有路由
+    register_routes(app)
 
     return app
