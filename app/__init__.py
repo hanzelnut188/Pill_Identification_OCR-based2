@@ -21,7 +21,12 @@ from flask_cors import CORS
 import os
 
 def create_app():
-    app = Flask(__name__, template_folder="templates")
+    app = Flask(
+        __name__,
+        template_folder="templates",       # ✅ HTML 存放位置
+        static_folder="static"            # ✅ CSS、JS 存放位置
+    )
+
     CORS(app)
 
     # 測試數據載入
