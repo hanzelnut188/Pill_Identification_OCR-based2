@@ -21,7 +21,7 @@ from flask_cors import CORS
 import os
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder="templates")
     CORS(app)
 
     # 測試數據載入
