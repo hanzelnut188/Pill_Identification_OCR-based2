@@ -39,9 +39,15 @@ def create_app():
         print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
 
+    # @app.route("/")
+    # def index():
+    #     return render_template("index.html")
     @app.route("/")
     def index():
-        return render_template("index.html")
+        try:
+            return render_template("index.html")
+        except Exception as e:
+            return f"HTML template rendering failed: {e}"
 
     @app.route("/healthz")
     def healthz():
