@@ -22,3 +22,6 @@ flask-cors
 
 # YOLOv8 套件
 ultralytics
+
+#can be deleted
+pandas==2.0.3

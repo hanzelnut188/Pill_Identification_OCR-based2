@@ -7,18 +7,27 @@
 #     port = int(os.environ.get("PORT", 10000))
 #     app.run(host="0.0.0.0", port=port, debug=False)
 # main.py - 簡化測試版
-from flask import Flask, jsonify
+# 步驟 1：恢復應用工廠模式
+# main.py
 import os
 
-app = Flask(__name__)
+try:
+    from app import create_app
+    app = create_app()
+    print("✓ Successfully imported and created app")
+except Exception as e:
+    print(f"✗ Error importing app: {e}")
+    # 降級到簡單版本
+    from flask import Flask
+    app = Flask(__name__)
 
-@app.route("/")
-def hello():
-    return "Hello World!"
+    @app.route("/")
+    def hello():
+        return "Hello World!"
 
-@app.route("/healthz")
-def healthz():
-    return "ok", 200
+    @app.route("/healthz")
+    def healthz():
+        return "ok", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
