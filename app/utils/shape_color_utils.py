@@ -112,49 +112,15 @@ def extract_dominant_colors_by_ratio(cropped_img, k=6, min_ratio=0.4, visualize=
             if similar not in extended_colors:
                 extended_colors.append(similar)
 
-    # 圖示
-    if visualize:
-        ordered_labels = list(label_counts.keys())
-        ordered_colors = [center_colors[i] / 255 for i in ordered_labels]
-        hex_colors = [rgb2hex(center_colors[i]) for i in ordered_labels]
-
-        plt.figure(figsize=(14, 4))
-        plt.subplot(131)
-        plt.imshow(img_rgb)
-        plt.axis('off')
-
-        plt.subplot(132)
-        plt.pie(
-            [label_counts[i] for i in ordered_labels],
-            labels=hex_colors,
-            colors=ordered_colors,
-            startangle=90
-        )
-        plt.axis('equal')
-        plt.title("Raw RGB Cluster Pie")
-
-        plt.subplot(133)
-        plt.bar(semantic_counter.keys(), semantic_counter.values(), color='gray')
-        # 用時加上 fontproperties
-        plt.xticks(rotation=45, fontproperties=zh_font)
-        plt.title("Color Group Count")
-        plt.tight_layout()
-        plt.show()
-
     return extended_colors
 
 
 # ===外型辨識函式 ===
-def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None, debug=False):
+def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None):
     try:
         output = cropped_img.copy()
         thresh = preprocess_with_shadow_correction(output)
-        if debug:
-            # cv2_imshow(output)#註解SSS
-            # cv2_imshow(thresh)
-            cv2.imshow("thresh", thresh)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         shape = "其他"
 
@@ -166,7 +132,7 @@ def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None,
 
             if contours_fallback:
                 main_contour = max(contours_fallback, key=cv2.contourArea)
-                shape = detect_shape_three_classes(main_contour, img_debug=output if debug else None)
+                shape = detect_shape_three_classes(main_contour, img_debug=output)
             else:
                 print("⚠️ 二次嘗試仍無輪廓，標記為其他")  # 註解SSS
         elif contours:
@@ -175,13 +141,9 @@ def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None,
             img_area = cropped_img.shape[0] * cropped_img.shape[1]
             area_ratio = area / img_area
             # print(f"📐 輪廓面積：{area:.1f}，圖片面積：{img_area:.1f}，佔比：{area_ratio:.2%}")#註解SSS
-            shape = detect_shape_three_classes(main_contour, img_debug=output if debug else None)
+            shape = detect_shape_three_classes(main_contour, img_debug=output)
 
-        if shape != "其他" and debug:
-            cv2.drawContours(output, [main_contour], -1, (0, 0, 255), 3)
-            x, y, w, h = cv2.boundingRect(main_contour)
-            cv2.putText(output, shape, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            # cv2_imshow(output)#註解SSS
+
 
         if expected_shape:
             result = "✅" if shape == expected_shape else "❌"
@@ -247,7 +209,7 @@ def preprocess_with_shadow_correction(img_bgr):
 ratios_list = []
 
 
-def detect_shape_three_classes(contour, img_debug=None):
+def detect_shape_three_classes(contour):
     shape = "其他"
     # print(len(contour))#註解SSS
     try:
@@ -262,24 +224,6 @@ def detect_shape_three_classes(contour, img_debug=None):
             ratio = max(major, minor) / min(major, minor)
             ratios_list.append(ratio)
             # print(f"🔍 Ellipse ratio: {ratio:.3f}")#註解SSS
-
-            # ➤ 畫橢圓
-            if img_debug is not None:
-                cv2.ellipse(img_debug, ellipse, (0, 255, 0), 2)
-
-                # ➤ 畫主軸線
-                cx, cy = int(center[0]), int(center[1])
-                length = int(max(axes) / 2)
-                angle_rad = np.deg2rad(angle)
-                dx = int(length * np.cos(angle_rad))
-                dy = int(length * np.sin(angle_rad))
-                pt1 = (cx - dx, cy - dy)
-                pt2 = (cx + dx, cy + dy)
-                cv2.line(img_debug, pt1, pt2, (255, 0, 255), 2)
-
-                # ➤ 印出比值
-                cv2.putText(img_debug, f"{ratio:.2f}", (cx, cy - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
             # ➤ 分類
             if 0.88 <= ratio <= 1.25:

@@ -17,8 +17,6 @@ register_heif_opener()
 UPLOAD_FOLDER = "uploads/"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
-app = Flask(__name__)
-CORS(app)
 df = pd.read_excel("data/TESTData.xlsx")
 color_dict = {
     '白色': [1, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 17, 18, 19, 23, 24, 25, 28, 29, 30, 35, 36, 38, 39, 40, 43, 45, 46, 47,
@@ -70,59 +68,6 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def index():
-    return render_template("index.html")
-
-
-@app.route("/upload", methods=["POST"])
-def upload_image():
-    if not request.is_json:
-        return jsonify({"error": "Invalid content type. JSON expected."}), 415
-
-    data = request.get_json()
-    image_data = data.get("image")
-
-    if not image_data or "," not in image_data:
-        return jsonify({"error": "Invalid or missing image data"}), 400
-
-    try:
-        image_binary = base64.b64decode(image_data.split(",")[1])
-
-        # 嘗試使用 Pillow 開啟圖片
-        try:
-            image = Image.open(BytesIO(image_binary)).convert("RGB")
-        except UnidentifiedImageError as e:
-            # print("❌ Pillow 無法辨識圖片格式:", e)
-            return jsonify({"error": "無法辨識圖片格式"}), 400
-
-        # 寫入為 .jpg 暫存檔
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", mode="wb") as temp_file:
-            image.save(temp_file, format="JPEG")
-            temp_file.flush()
-            os.fsync(temp_file.fileno())
-            temp_file_path = temp_file.name
-
-        # print("📄 成功儲存圖片：", temp_file_path)
-
-        result = process_image(temp_file_path)
-        # ✅ 將原始圖片轉成 base64 並加進 result 中
-        # with open(temp_file_path, "rb") as f:
-        #     encoded_image = base64.b64encode(f.read()).decode("utf-8")
-        # image_base64 = f"data:image/jpeg;base64,{encoded_image}"
-        # result["uploaded_image"] = image_base64
-
-        # 🧹 辨識完成後清理 temp_imgs
-        shutil.rmtree("./temp_imgs", ignore_errors=True)
-        # ✅ 用完就手動刪除
-        os.remove(temp_file_path)
-        # print(result)
-        return jsonify({"message": "Image processed successfully", "result": result})
-
-    except Exception as e:
-        print(f"Error processing image: {e}")
-        return jsonify({"error": "Internal server error", "details": str(e)}), 500
-
-
 def safe_get(row, key):
     val = row.get(key, "")
     if pd.isna(val):
@@ -130,47 +75,97 @@ def safe_get(row, key):
     return str(val).strip()
 
 
-@app.route("/match", methods=["POST"])
-def match_drug():
-    try:
+# ✅ 改成函數，傳入 app
+def register_routes(app):
+    @app.route("/")
+    def index():
+        return render_template("index.html")
+
+    @app.route("/upload", methods=["POST"])
+    def upload_image():
+        if not request.is_json:
+            return jsonify({"error": "Invalid content type. JSON expected."}), 415
+
         data = request.get_json()
-        texts = data.get("texts", [])
-        colors = data.get("colors", [])
-        shape = data.get("shape", "")
+        image_data = data.get("image")
 
-        print("Received data:", texts, colors, shape)
+        if not image_data or "," not in image_data:
+            return jsonify({"error": "Invalid or missing image data"}), 400
 
-        # === [1] 先用顏色聯集篩選所有可能藥物 ===
-        candidates = set()
-        for color in colors:
-            candidates |= set(color_dict.get(color, []))
+        try:
+            image_binary = base64.b64decode(image_data.split(",")[1])
+            try:
+                image = Image.open(BytesIO(image_binary)).convert("RGB")
+            except UnidentifiedImageError:
+                return jsonify({"error": "無法辨識圖片格式"}), 400
 
-        # === [2] 再用外型做交集過濾 ===
-        if shape:
-            candidates &= set(shape_dict.get(shape, []))
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", mode="wb") as temp_file:
+                image.save(temp_file, format="JPEG")
+                temp_file.flush()
+                os.fsync(temp_file.fileno())
+                temp_file_path = temp_file.name
 
-        if not candidates:
-            return jsonify({"error": "找不到符合顏色與外型的藥品"}), 404
+            result = process_image(temp_file_path)
+            shutil.rmtree("./temp_imgs", ignore_errors=True)
+            os.remove(temp_file_path)
 
-        print("候選用量排序:", candidates)
-        df_sub = df[df["用量排序"].isin(candidates)]
+            return jsonify({"message": "Image processed successfully", "result": result})
 
-        # === [3] 判斷是否有文字辨識結果 ===
-        if not texts or texts == ["None"]:
-            # 無文字 → 回傳所有符合 F:None|B:None 的候選藥物
-            results = []
-            for _, row in df_sub.iterrows():
-                text_field = str(row.get("文字", "")).strip()
-                if text_field not in ["F:NONE|B:NONE", "F:None|B:None"]:
-                    continue  # 只保留前後文字皆為 None 的藥品
+        except Exception as e:
+            print(f"Error processing image: {e}")
+            return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
+    @app.route("/match", methods=["POST"])
+    def match_drug():
+        try:
+            data = request.get_json()
+            texts = data.get("texts", [])
+            colors = data.get("colors", [])
+            shape = data.get("shape", "")
+
+            candidates = set()
+            for color in colors:
+                candidates |= set(color_dict.get(color, []))
+
+            if shape:
+                candidates &= set(shape_dict.get(shape, []))
+
+            if not candidates:
+                return jsonify({"error": "找不到符合顏色與外型的藥品"}), 404
+
+            df_sub = df[df["用量排序"].isin(candidates)]
+
+            if not texts or texts == ["None"]:
+                results = []
+                for _, row in df_sub.iterrows():
+                    if str(row.get("文字", "")).strip() not in ["F:NONE|B:NONE", "F:None|B:None"]:
+                        continue
+                    picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
+                    picture_base64 = ""
+                    if os.path.exists(picture_path):
+                        with open(picture_path, "rb") as f:
+                            picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+                    results.append({
+                        "name": safe_get(row, "學名"),
+                        "symptoms": safe_get(row, "適應症"),
+                        "precautions": safe_get(row, "用藥指示與警語"),
+                        "side_effects": safe_get(row, "副作用"),
+                        "drug_image": picture_base64
+                    })
+                return jsonify({"candidates": results})
+
+            match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
+            row = match_result.get("front", {}).get("row") or match_result.get("back", {}).get("row")
+            if isinstance(row, pd.Series):
+                row = row.to_dict()
+
+            if isinstance(row, dict):
                 picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
                 picture_base64 = ""
                 if os.path.exists(picture_path):
                     with open(picture_path, "rb") as f:
                         picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-
-                results.append({
+                return jsonify({
                     "name": safe_get(row, "學名"),
                     "symptoms": safe_get(row, "適應症"),
                     "precautions": safe_get(row, "用藥指示與警語"),
@@ -178,42 +173,13 @@ def match_drug():
                     "drug_image": picture_base64
                 })
 
-            return jsonify({"candidates": results})
+            return jsonify({"error": "無法比對藥品"}), 404
 
-        # === [4] 有文字 → 走原本 LCS 比對流程 ===
-        match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
-        print("match_result =", match_result)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
-        # 取最佳匹配 row
-        front_row = match_result.get("front", {}).get("row")
-        back_row = match_result.get("back", {}).get("row")
-        row = front_row if front_row is not None else back_row
-
-        if isinstance(row, pd.Series):
-            row = row.to_dict()
-
-        if isinstance(row, dict):
-            picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
-            picture_base64 = ""
-            if os.path.exists(picture_path):
-                with open(picture_path, "rb") as f:
-                    picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-
-            return jsonify({
-                "name": safe_get(row, "學名"),
-                "symptoms": safe_get(row, "適應症"),
-                "precautions": safe_get(row, "用藥指示與警語"),
-                "side_effects": safe_get(row, "副作用"),
-                "drug_image": picture_base64
-            })
-
-        return jsonify({"error": "無法比對藥品"}), 404
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": "Internal server error", "details": str(e)}), 500
-
-
-if __name__ == "__main__":
-    app.run(debug=True, port=8001)
+    @app.route("/healthz")
+    def healthz():
+        return "ok", 200
