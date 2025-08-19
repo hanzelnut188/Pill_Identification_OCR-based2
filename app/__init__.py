@@ -65,71 +65,88 @@
 #     return app
 
 # app/__init__.py - 除錯版本
-from flask import Flask, jsonify, render_template
-from flask_cors import CORS
+
 import os
+import sys
+
+# 最早的除錯輸出
+print("=== DEBUG: Starting app/__init__.py ===")
+print(f"Python version: {sys.version}")
+print(f"Current working directory: {os.getcwd()}")
+
+try:
+    from flask import Flask, jsonify
+    print("✓ Flask imported successfully")
+except Exception as e:
+    print(f"✗ Error importing Flask: {e}")
+    sys.exit(1)
+
+try:
+    from flask_cors import CORS
+    print("✓ Flask-CORS imported successfully")
+except Exception as e:
+    print(f"✗ Error importing Flask-CORS: {e}")
 
 def create_app():
-    app = Flask(
-        __name__,
-        template_folder="templates",       # 修正：相對於當前 app/ 目錄
-        static_folder="static"            # 修正：相對於當前 app/ 目錄
-    )
+    print("=== DEBUG: create_app() called ===")
 
-    CORS(app)
-
-    # 測試數據載入
     try:
-        import pandas as pd
-        df = pd.read_excel("data/TESTData.xlsx")
-        print(f"✓ Successfully loaded Excel with {len(df)} rows")
-        data_status = f"Data loaded: {len(df)} rows"
+        app = Flask(__name__)
+        print("✓ Flask app created")
     except Exception as e:
-        print(f"✗ Error loading data: {e}")
-        data_status = f"Data load failed: {str(e)}"
+        print(f"✗ Error creating Flask app: {e}")
+        raise
 
-    # 除錯：檢查模板資料夾
-    template_dir = app.template_folder
-    static_dir = app.static_folder
-    print(f"Template folder: {template_dir}")
-    print(f"Static folder: {static_dir}")
-
-    # 檢查檔案是否存在
     try:
-        import os
-        files_in_templates = os.listdir(template_dir) if os.path.exists(template_dir) else []
-        files_in_static = os.listdir(static_dir) if os.path.exists(static_dir) else []
-        print(f"Files in templates: {files_in_templates}")
-        print(f"Files in static: {files_in_static}")
+        CORS(app)
+        print("✓ CORS configured")
     except Exception as e:
-        print(f"Error checking directories: {e}")
+        print(f"✗ Error configuring CORS: {e}")
 
+    # 基本路由（不涉及模板）
     @app.route("/")
     def index():
-        try:
-            # 先檢查模板是否存在
-            template_path = os.path.join(app.template_folder, "index.html")
-            if not os.path.exists(template_path):
-                return f"Template not found at: {template_path}<br>Status: {data_status}"
-
-            return render_template("index.html")
-        except Exception as e:
-            return f"HTML template rendering failed: {e}<br>Status: {data_status}"
+        return "Hello from create_app! Service is running."
 
     @app.route("/healthz")
     def healthz():
         return "ok", 200
 
+    @app.route("/debug-info")
+    def debug_info():
+        return {
+            "python_version": sys.version,
+            "cwd": os.getcwd(),
+            "files_in_cwd": os.listdir("."),
+            "app_folder_exists": os.path.exists("app"),
+            "templates_folder_exists": os.path.exists("app/templates"),
+            "static_folder_exists": os.path.exists("app/static")
+        }
+
+    # 測試數據載入（可能的問題來源）
+    try:
+        print("=== DEBUG: Attempting to load data ===")
+        import pandas as pd
+        print("✓ Pandas imported")
+
+        if os.path.exists("data/TESTData.xlsx"):
+            print("✓ Excel file exists")
+            df = pd.read_excel("data/TESTData.xlsx")
+            print(f"✓ Successfully loaded Excel with {len(df)} rows")
+            data_status = f"Data loaded: {len(df)} rows"
+        else:
+            print("✗ Excel file not found")
+            data_status = "Excel file not found"
+
+    except Exception as e:
+        print(f"✗ Error loading data: {e}")
+        data_status = f"Data load failed: {str(e)}"
+
     @app.route("/data-status")
     def data_status_route():
         return {"status": data_status}
 
-    # 導入並註冊其他路由（放在最後）
-    try:
-        from app.route import register_routes
-        register_routes(app)
-        print("✓ Additional routes registered")
-    except Exception as e:
-        print(f"✗ Error registering additional routes: {e}")
-
+    print("=== DEBUG: create_app() completed successfully ===")
     return app
+
+print("=== DEBUG: app/__init__.py loaded successfully ===")
