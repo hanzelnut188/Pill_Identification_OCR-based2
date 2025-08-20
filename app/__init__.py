@@ -1010,7 +1010,7 @@ import os
 import sys
 
 from app.route import register_routes
-
+#路徑沒問題
 print("=== DEBUG: Starting app/__init__.py ===")
 print(f"Current working directory: {os.getcwd()}")
 
