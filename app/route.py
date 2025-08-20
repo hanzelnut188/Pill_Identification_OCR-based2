@@ -197,7 +197,7 @@ from io import BytesIO
 # 你需要根據實際情況調整匯入
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-
+#服務啟動，但有問題
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
