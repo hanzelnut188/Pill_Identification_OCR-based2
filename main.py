@@ -12,17 +12,24 @@ import os
 
 try:
     from app import create_app
+
     app = create_app()
     print("✓ Successfully imported and created app")
 except Exception as e:
-    print(f"✗ Error importing app: {e}")
-    # 降級到簡單版本
+    print("✗ Fallback activated due to error:")
+    import traceback
+
+    traceback.print_exc()
+
     from flask import Flask
+
     app = Flask(__name__)
+
 
     @app.route("/")
     def hello():
-        return "Hello World!"
+        return "Hello World! (fallback mode)"
+
 
     @app.route("/healthz")
     def healthz():
@@ -30,4 +37,4 @@ except Exception as e:
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=True)
