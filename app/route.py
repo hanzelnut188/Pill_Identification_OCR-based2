@@ -77,9 +77,9 @@ def safe_get(row, key):
 
 # ✅ 改成函數，傳入 app
 def register_routes(app):
-    @app.route("/")
-    def index():
-        return render_template("index.html")
+    # @app.route("/")
+    # def index():
+    #     return render_template("index.html")
 
     @app.route("/upload", methods=["POST"])
     def upload_image():
@@ -180,6 +180,3 @@ def register_routes(app):
             traceback.print_exc()
             return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
-    @app.route("/healthz")
-    def healthz():
-        return "ok", 200
