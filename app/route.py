@@ -197,7 +197,8 @@ from io import BytesIO
 # 你需要根據實際情況調整匯入
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-#可以跑在RENDER 但功能無用
+
+# 可以跑在RENDER 但功能無用
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -209,7 +210,63 @@ def safe_get(row, key):
     return str(val).strip()
 
 
-def register_routes(app):
+def get_fallback_html():
+    """簡化的回退 HTML"""
+    return """<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <title>Medical Detection APP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            margin: 0; padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        }
+        .container { 
+            background: white; padding: 2rem; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center;
+            max-width: 500px; width: 100%;
+        }
+        h1 { color: #333; margin-bottom: 1rem; }
+        .status { 
+            background: #e8f5e8; padding: 1rem; border-radius: 8px;
+            margin: 1rem 0; border-left: 4px solid #4caf50;
+        }
+        .links a { 
+            display: inline-block; margin: 0.5rem; padding: 0.5rem 1rem;
+            background: #667eea; color: white; text-decoration: none;
+            border-radius: 5px; transition: background 0.3s;
+        }
+        .links a:hover { background: #5a67d8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 Medical Detection APP</h1>
+        <div class="status">
+            <h3>✅ 服務正常運行中</h3>
+            <p>後端 API 已啟動並可接收請求</p>
+            <p>使用簡化模板顯示</p>
+        </div>
+        <div class="links">
+            <a href="/debug">🔍 查看除錯資訊</a>
+            <a href="/api/status">📊 API 狀態</a>
+        </div>
+        <div style="margin-top: 2rem; font-size: 0.9rem; color: #666;">
+            <p>如果您是開發者，請檢查模板文件是否正確配置</p>
+        </div>
+    </div>
+</body>
+</html>"""
+
+
+print("=== DEBUG: app/__init__.py loaded successfully ===")
+
+
+def register_routes(app, data_status):
     """註冊所有路由到 Flask app"""
 
     # 從 app 取得數據，如果沒有則創建空的 DataFrame
@@ -291,39 +348,96 @@ def register_routes(app):
                  371,
                  384, 401]}
 
-    # 如果有數據，建立索引
-    if not df.empty:
-        # 這裡需要根據你的實際資料結構來建立索引
-        # 例如：
-        # color_dict = build_color_index(df)
-        # shape_dict = build_shape_index(df)
-        pass
-
     @app.route("/")
     def index():
-        """主頁路由"""
         try:
-            return render_template("index.html")
+            print("=== DEBUG: Rendering index page ===")
+            # 使用 Flask 的 render_template 而不是手動讀取
+            return render_template('index.html')
         except Exception as e:
             print(f"Error rendering template: {e}")
-            # 回退到簡單的 HTML
-            return """
-            <!DOCTYPE html>
-            <html lang="zh-Hant">
-            <head>
-                <meta charset="utf-8">
-                <title>Medical Detection APP</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body>
-                <div style="text-align: center; padding: 20px;">
-                    <h1>Medical Detection APP</h1>
-                    <p>藥物辨識系統</p>
-                    <p>模板載入中...</p>
-                </div>
-            </body>
-            </html>
-            """
+            return get_fallback_html()
+
+    @app.route("/healthz")
+    def healthz():
+        return "ok", 200
+
+    @app.route("/debug")
+    def debug():
+        import json
+
+        info = {
+            "status": "running",
+            "cwd": os.getcwd(),
+            "template_folder": app.template_folder,
+            "template_exists": os.path.exists(app.template_folder),
+            "static_folder": app.static_folder,
+            "static_exists": os.path.exists(app.static_folder),
+            "data_status": data_status,
+            "flask_info": {
+                "template_folder": app.template_folder,
+                "static_folder": app.static_folder,
+                "static_url_path": app.static_url_path
+            }
+        }
+
+        # 列出文件
+        try:
+            if os.path.exists(app.template_folder):
+                info["template_files"] = os.listdir(app.template_folder)
+            else:
+                info["template_files"] = ["Template folder not found"]
+        except Exception as e:
+            info["template_files"] = [f"Error: {str(e)}"]
+
+        try:
+            if os.path.exists(app.static_folder):
+                info["static_files"] = os.listdir(app.static_folder)
+            else:
+                info["static_files"] = ["Static folder not found"]
+        except Exception as e:
+            info["static_files"] = [f"Error: {str(e)}"]
+
+        # 檢查具體文件路徑
+        info["file_paths"] = {
+            "index.html": os.path.join(app.template_folder, "index.html"),
+            "index.css": os.path.join(app.static_folder, "index.css"),
+            "index.js": os.path.join(app.static_folder, "index.js"),
+            "config.js": os.path.join(app.static_folder, "config.js")
+        }
+
+        info["file_exists"] = {
+            path_name: os.path.exists(path) for path_name, path in info["file_paths"].items()
+        }
+
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Debug Info</title>
+            <style>
+                body {{ font-family: monospace; margin: 20px; }}
+                pre {{ background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto; }}
+                .section {{ margin: 20px 0; }}
+                h2 {{ color: #333; border-bottom: 2px solid #ccc; }}
+            </style>
+        </head>
+        <body>
+            <h1>🔍 Debug Information</h1>
+            <div class="section">
+                <h2>System Status</h2>
+                <pre>{json.dumps(info, indent=2, ensure_ascii=False)}</pre>
+            </div>
+            <div class="section">
+                <h2>Quick Links</h2>
+                <p><a href="/">← Back to Home</a></p>
+                <p><a href="/api/status">API Status</a></p>
+                <p><a href="/static/index.css">Test CSS File</a></p>
+                <p><a href="/static/index.js">Test JS File</a></p>
+            </div>
+        </body>
+        </html>
+        """
 
     @app.route("/upload", methods=["POST"])
     def upload_image():
@@ -372,6 +486,18 @@ def register_routes(app):
         except Exception as e:
             print(f"Error processing image: {e}")
             return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+    @app.route("/api/status")
+    def api_status():
+        return jsonify({
+            "status": "running",
+            "version": "1.0.0",
+            "data_loaded": hasattr(app, 'df') and app.df is not None,
+            "data_rows": len(app.df) if hasattr(app, 'df') and app.df is not None else 0,
+            "endpoints": ["/", "/healthz", "/debug", "/api/status"]
+        })
+
+    print("✓ Routes registered successfully")
 
     @app.route("/match", methods=["POST"])
     def match_drug():
@@ -467,17 +593,3 @@ def register_routes(app):
             import traceback
             traceback.print_exc()
             return jsonify({"error": "Internal server error", "details": str(e)}), 500
-
-    @app.route("/healthz")
-    def healthz():
-        """健康檢查路由"""
-        return "ok", 200
-
-    @app.route("/api/status")
-    def api_status():
-        """API 狀態檢查"""
-        return jsonify({
-            "status": "running",
-            "data_loaded": not df.empty,
-            "data_rows": len(df) if not df.empty else 0
-        })
