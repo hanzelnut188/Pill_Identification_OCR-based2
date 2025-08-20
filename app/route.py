@@ -353,7 +353,7 @@ def register_routes(app, data_status):
         try:
             print("=== DEBUG: Rendering index page ===")
             # 使用 Flask 的 render_template 而不是手動讀取
-            return render_template('index.html')
+            return render_template("index.html")
         except Exception as e:
             print(f"Error rendering template: {e}")
             return get_fallback_html()

@@ -1034,8 +1034,8 @@ def create_app():
 
     # 簡化路徑設定 - 根據DEBUG_INFO，我們知道正確路徑
     template_folder = "app/templates"
-    # static_folder = "app/static"
-    static_folder = "static"
+    static_folder = "app/static"
+    # static_folder = "static"
 
     print(f"Using template folder: {template_folder}")
     print(f"Using static folder: {static_folder}")
