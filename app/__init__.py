@@ -283,7 +283,7 @@
 #
 # print("=== DEBUG: app/__init__.py loaded successfully ===")
 
-app/__init__.py - 修正靜態文件配置
+#app/__init__.py - 修正靜態文件配置
 import os
 import sys
 
