@@ -714,7 +714,7 @@
 #
 # print("=== DEBUG: app/__init__.py loaded successfully ===")
 
-
+#可以跑在RENDER 但功能無用
 import os
 import sys
 print("=== DEBUG: Starting app/__init__.py ===")
