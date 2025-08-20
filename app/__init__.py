@@ -227,121 +227,9 @@ def create_app():
         print(f"✗ 載入資料失敗: {e}")
         df = None
 
-    @app.route("/")
-    def index():
-        return render_template("index.html")
-
-    @app.route("/healthz")
-    def healthz():
-        return "ok", 200
-
-    # 圖片上傳與辨識 API（對應前端的 /upload）
-    @app.route("/upload", methods=["POST"])
-    def upload_image():
-        try:
-            print("收到圖片上傳請求")
-
-            # 獲取 JSON 資料
-            data = request.get_json()
-            if not data or 'image' not in data:
-                return jsonify({"error": "沒有收到圖片資料"}), 400
-
-            image_data = data['image']
-            print(f"收到圖片資料，長度: {len(image_data)}")
-
-            # 這裡應該加入你的實際圖片辨識邏輯
-            # 目前返回測試資料，格式要符合前端期待的結構
-            result = {
-                "result": {
-                    "cropped_image": image_data,  # 暫時返回原圖
-                    "文字辨識": ["測試文字1", "測試文字2"],
-                    "顏色": ["白色", "藍色"],
-                    "外型": "圓形"
-                }
-            }
-
-            print(f"返回辨識結果: {result}")
-            return jsonify(result)
-
-        except Exception as e:
-            print(f"圖片上傳錯誤: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": f"圖片處理失敗: {str(e)}"}), 500
-
-    # 藥物配對 API（對應前端的 /match）
-    @app.route("/match", methods=["POST"])
-    def match_drugs():
-        try:
-            print("收到藥物配對請求")
-
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "沒有收到配對資料"}), 400
-
-            texts = data.get('texts', [])
-            colors = data.get('colors', [])
-            shape = data.get('shape', '')
-
-            print(f"配對條件 - 文字: {texts}, 顏色: {colors}, 外型: {shape}")
-
-            # 這裡應該根據你的實際資料庫進行配對
-            # 目前返回測試資料
-
-            # 模擬多候選結果
-            candidates = [
-                {
-                    "name": "測試藥物A",
-                    "symptoms": "用於治療頭痛、發燒",
-                    "precautions": "飯後服用",
-                    "side_effects": "可能引起胃部不適",
-                    "drug_image": "https://via.placeholder.com/200x150?text=Drug+A"
-                },
-                {
-                    "name": "測試藥物B",
-                    "symptoms": "用於治療感冒症狀",
-                    "precautions": "不可空腹服用",
-                    "side_effects": "可能引起嗜睡",
-                    "drug_image": "https://via.placeholder.com/200x150?text=Drug+B"
-                }
-            ]
-
-            result = {"candidates": candidates}
-
-            print(f"返回配對結果: {len(candidates)} 個候選")
-            return jsonify(result)
-
-        except Exception as e:
-            print(f"藥物配對錯誤: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": f"配對失敗: {str(e)}"}), 500
-
-    # 搜尋藥物 API
-    @app.route("/api/search", methods=["GET"])
-    def search_pills():
-        try:
-            query = request.args.get('q', '').strip()
-            if not query:
-                return jsonify({"error": "搜尋關鍵字不能為空"}), 400
-
-            if df is None:
-                return jsonify({"error": "資料庫載入失敗"}), 500
-
-            # 在這裡加入搜尋邏輯
-            # 假設你的 Excel 有 'name' 或類似的欄位
-            # results = df[df['藥物名稱'].str.contains(query, na=False)].to_dict('records')
-
-            # 目前返回測試資料
-            results = [
-                {"name": f"搜尋結果: {query}", "description": "測試搜尋結果"}
-            ]
-
-            return jsonify({"results": results})
-
-        except Exception as e:
-            print(f"搜尋錯誤: {str(e)}")
-            return jsonify({"error": f"搜尋失敗: {str(e)}"}), 500
+    # ✅ 註冊 route.py 中的所有路由
+    from app.route import register_routes
+    register_routes(app)
 
     # Debug 路由
     @app.route("/debug")
@@ -368,4 +256,6 @@ def create_app():
             return jsonify({"error": "伺服器內部錯誤"}), 500
         return render_template("index.html"), 500
 
+    print("✅ Flask 應用程式初始化完成")
+    print("✅ 已註冊所有路由")
     return app
