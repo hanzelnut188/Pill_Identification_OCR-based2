@@ -67,7 +67,7 @@
 # app/__init__.py - 除錯版本
 
 
-#可以測試LOG
+# 可以測試LOG
 # import os
 # import sys
 #
@@ -283,7 +283,7 @@
 #
 # print("=== DEBUG: app/__init__.py loaded successfully ===")
 
-#app/__init__.py - 修正靜態文件配置
+# app/__init__.py - 修正靜態文件配置
 # import os
 # import sys
 #
@@ -475,23 +475,26 @@
 # print("=== DEBUG: app/__init__.py loaded successfully ===")
 
 
-
 import os
 import sys
+
 print("=== DEBUG: Starting app/__init__.py ===")
 print(f"Current working directory: {os.getcwd()}")
 
 try:
     from flask import Flask, jsonify, render_template
+
     print("✓ Flask and render_template imported successfully")
 except Exception as e:
     print(f"✗ Error importing Flask: {e}")
 
 try:
     from flask_cors import CORS
+
     print("✓ Flask-CORS imported successfully")
 except Exception as e:
     print(f"✗ Error importing Flask-CORS: {e}")
+
 
 def create_app():
     print("=== DEBUG: create_app() called ===")
@@ -505,10 +508,10 @@ def create_app():
 
     # 檢查可能的路徑組合
     path_combinations = [
-        ("templates", "static"),                    # 根目錄
-        ("app/templates", "app/static"),            # app 子目錄
-        ("./templates", "./static"),                # 明確相對路徑
-        ("./app/templates", "./app/static")         # 明確 app 相對路徑
+        ("templates", "static"),  # 根目錄
+        ("app/templates", "app/static"),  # app 子目錄
+        ("./templates", "./static"),  # 明確相對路徑
+        ("./app/templates", "./app/static")  # 明確 app 相對路徑
     ]
 
     for template_path, static_path in path_combinations:
@@ -572,11 +575,11 @@ def create_app():
         print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
         app.df = None
-
+    # 確保在註冊路由前匯入必要的模組
+    from .route import register_routes
     # 註冊路由
     try:
-        # 確保在註冊路由前匯入必要的模組
-        from .routes import register_routes
+
         register_routes(app)
         print("✓ Routes registered successfully")
     except ImportError as e:
@@ -589,6 +592,7 @@ def create_app():
 
     print("=== DEBUG: create_app() completed successfully ===")
     return app
+
 
 def register_basic_routes(app, data_status):
     """註冊基本路由作為備用"""
@@ -645,6 +649,7 @@ def register_basic_routes(app, data_status):
 
         return info
 
+
 def simple_home_html():
     """簡單的HTML首頁"""
     return """
@@ -673,6 +678,7 @@ def simple_home_html():
     </body>
     </html>
     """
+
 
 def create_default_template(template_folder):
     """創建預設的 index.html 模板"""
@@ -704,5 +710,6 @@ def create_default_template(template_folder):
         print(f"✓ Created default template at {template_path}")
     except Exception as e:
         print(f"✗ Error creating default template: {e}")
+
 
 print("=== DEBUG: app/__init__.py loaded successfully ===")
