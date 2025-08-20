@@ -346,11 +346,17 @@ def create_app():
         print(f"✗ Using default static folder: {static_folder}")
 
     try:
+        # app = Flask(
+        #     __name__,
+        #     template_folder=template_folder,
+        #     static_folder=static_folder,
+        #     static_url_path='/static'  # 明確指定靜態文件 URL 路徑
+        # )
         app = Flask(
             __name__,
             template_folder=template_folder,
-            static_folder=static_folder,
-            static_url_path='/static'  # 明確指定靜態文件 URL 路徑
+            static_folder="static"
+
         )
         print(f"✓ Flask app created")
         print(f"  Template folder: {app.template_folder}")
