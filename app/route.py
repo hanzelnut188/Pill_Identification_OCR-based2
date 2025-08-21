@@ -359,7 +359,7 @@ def register_routes(app, data_status):
 
         try:
             # 直接使用 render_template，應該現在能工作了
-            result = render_template('index.html')
+            result = render_template("index.html")
             print("✓ Template rendered successfully using render_template")
             return result
 
@@ -487,8 +487,6 @@ def register_routes(app, data_status):
     print("✓ Routes registered successfully")
 
     @app.route("/upload", methods=["POST"])
-
-
     def upload_image():
         """圖片上傳和處理路由"""
         if not request.is_json:
@@ -542,7 +540,6 @@ def register_routes(app, data_status):
             import traceback
             traceback.print_exc()
             return jsonify({"error": "Internal server error", "details": str(e)}), 500
-
 
     @app.route("/match", methods=["POST"])
     def match_drug():
