@@ -469,25 +469,33 @@ def register_routes(app, data_status):
                 os.fsync(temp_file.fileno())
                 temp_file_path = temp_file.name
 
-            # 處理圖片 - 這個函數需要你實作或匯入
+            # 圖像處理
             try:
-                # result = process_image(temp_file_path)
-                result = process_image(temp_file_path)  # 假設 process_image 是你實作的函數
-            except NameError:
-                result = {"message": "Process image function not found"}
+                print(f"[DEBUG] Calling process_image() with {temp_file_path}")
+                result = process_image(temp_file_path)
+                print(f"[DEBUG] process_image result: {result}")
+            except Exception as e:
+                print(f"[ERROR] process_image failed: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({"error": "圖片處理失敗", "details": str(e)}), 500
 
-            # 清理臨時文件
+            # 清理臨時檔案
             try:
                 shutil.rmtree("./temp_imgs", ignore_errors=True)
                 os.remove(temp_file_path)
             except Exception as e:
                 print(f"Error cleaning up temp files: {e}")
 
+            # 回傳結果
             return jsonify({"message": "Image processed successfully", "result": result})
 
         except Exception as e:
             print(f"Error processing image: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
 
     @app.route("/api/status")
     def api_status():
