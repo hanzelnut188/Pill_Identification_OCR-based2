@@ -1,5 +1,7 @@
 import os
 import traceback
+
+from app.route import register_routes
 from app.utils.data_loader import generate_color_shape_dicts
 
 print("=== DEBUG: Starting app/__init__.py ===")
@@ -135,12 +137,13 @@ def create_app():
         app.df = None
 
     # 註冊路由
+    # register_routesS(app, data_status)
     register_routes(app, data_status)
     print("=== DEBUG: create_app() completed successfully ===")
     return app
 
 
-def register_routes(app, data_status):
+def register_routesS(app, data_status):
     """註冊路由"""
 
     @app.route("/")
