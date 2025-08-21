@@ -1,6 +1,7 @@
 import os
 import traceback
 from app.utils.data_loader import generate_color_shape_dicts
+
 print("=== DEBUG: Starting app/__init__.py ===")
 print(f"Current working directory: {os.getcwd()}")
 
@@ -126,6 +127,8 @@ def create_app():
         color_dict, shape_dict, invalid_colors = generate_color_shape_dicts(df)
         app.color_dict = color_dict
         app.shape_dict = shape_dict
+        print("color: ", color_dict)
+        print("shape: ", shape_dict)
     except Exception as e:
         print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
