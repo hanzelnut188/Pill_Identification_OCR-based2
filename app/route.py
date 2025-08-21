@@ -364,242 +364,244 @@ def register_routes(app, data_status):
     def healthz():
         return "ok", 200
 
-    @app.route("/debug")
-    def debug():
-        import json
-
-        info = {
-            "status": "running",
-            "cwd": os.getcwd(),
-            "template_folder": app.template_folder,
-            "template_exists": os.path.exists(app.template_folder),
-            "static_folder": app.static_folder,
-            "static_exists": os.path.exists(app.static_folder),
-            "data_status": data_status,
-            "flask_info": {
-                "template_folder": app.template_folder,
-                "static_folder": app.static_folder,
-                "static_url_path": app.static_url_path
-            }
-        }
-
-        # 列出文件
-        try:
-            if os.path.exists(app.template_folder):
-                info["template_files"] = os.listdir(app.template_folder)
-            else:
-                info["template_files"] = ["Template folder not found"]
-        except Exception as e:
-            info["template_files"] = [f"Error: {str(e)}"]
-
-        try:
-            if os.path.exists(app.static_folder):
-                info["static_files"] = os.listdir(app.static_folder)
-            else:
-                info["static_files"] = ["Static folder not found"]
-        except Exception as e:
-            info["static_files"] = [f"Error: {str(e)}"]
-
-        # 檢查具體文件路徑
-        info["file_paths"] = {
-            "index.html": os.path.join(app.template_folder, "index.html"),
-            "index.css": os.path.join(app.static_folder, "index.css"),
-            "index.js": os.path.join(app.static_folder, "index.js"),
-            "config.js": os.path.join(app.static_folder, "config.js")
-        }
-
-        info["file_exists"] = {
-            path_name: os.path.exists(path) for path_name, path in info["file_paths"].items()
-        }
-
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Debug Info</title>
-            <style>
-                body {{ font-family: monospace; margin: 20px; }}
-                pre {{ background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto; }}
-                .section {{ margin: 20px 0; }}
-                h2 {{ color: #333; border-bottom: 2px solid #ccc; }}
-            </style>
-        </head>
-        <body>
-            <h1>🔍 Debug Information</h1>
-            <div class="section">
-                <h2>System Status</h2>
-                <pre>{json.dumps(info, indent=2, ensure_ascii=False)}</pre>
-            </div>
-            <div class="section">
-                <h2>Quick Links</h2>
-                <p><a href="/">← Back to Home</a></p>
-                <p><a href="/api/status">API Status</a></p>
-                <p><a href="/static/index.css">Test CSS File</a></p>
-                <p><a href="/static/index.js">Test JS File</a></p>
-            </div>
-        </body>
-        </html>
+        # @app.route("/debug")
+        # def debug():
+        #     import json
+        #
+        #     info = {
+        #         "status": "running",
+        #         "cwd": os.getcwd(),
+        #         "template_folder": app.template_folder,
+        #         "template_exists": os.path.exists(app.template_folder),
+        #         "static_folder": app.static_folder,
+        #         "static_exists": os.path.exists(app.static_folder),
+        #         "data_status": data_status,
+        #         "flask_info": {
+        #             "template_folder": app.template_folder,
+        #             "static_folder": app.static_folder,
+        #             "static_url_path": app.static_url_path
+        #         }
+        #     }
+        #
+        #     # 列出文件
+        #     try:
+        #         if os.path.exists(app.template_folder):
+        #             info["template_files"] = os.listdir(app.template_folder)
+        #         else:
+        #             info["template_files"] = ["Template folder not found"]
+        #     except Exception as e:
+        #         info["template_files"] = [f"Error: {str(e)}"]
+        #
+        #     try:
+        #         if os.path.exists(app.static_folder):
+        #             info["static_files"] = os.listdir(app.static_folder)
+        #         else:
+        #             info["static_files"] = ["Static folder not found"]
+        #     except Exception as e:
+        #         info["static_files"] = [f"Error: {str(e)}"]
+        #
+        #     # 檢查具體文件路徑
+        #     info["file_paths"] = {
+        #         "index.html": os.path.join(app.template_folder, "index.html"),
+        #         "index.css": os.path.join(app.static_folder, "index.css"),
+        #         "index.js": os.path.join(app.static_folder, "index.js"),
+        #         "config.js": os.path.join(app.static_folder, "config.js")
+        #     }
+        #
+        #     info["file_exists"] = {
+        #         path_name: os.path.exists(path) for path_name, path in info["file_paths"].items()
+        #     }
+        #
+        #     return f"""
+        #     <!DOCTYPE html>
+        #     <html>
+        #     <head>
+        #         <title>Debug Info</title>
+        #         <style>
+        #             body {{ font-family: monospace; margin: 20px; }}
+        #             pre {{ background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto; }}
+        #             .section {{ margin: 20px 0; }}
+        #             h2 {{ color: #333; border-bottom: 2px solid #ccc; }}
+        #         </style>
+        #     </head>
+        #     <body>
+        #         <h1>🔍 Debug Information</h1>
+        #         <div class="section">
+        #             <h2>System Status</h2>
+        #             <pre>{json.dumps(info, indent=2, ensure_ascii=False)}</pre>
+        #         </div>
+        #         <div class="section">
+        #             <h2>Quick Links</h2>
+        #             <p><a href="/">← Back to Home</a></p>
+        #             <p><a href="/api/status">API Status</a></p>
+        #             <p><a href="/static/index.css">Test CSS File</a></p>
+        #             <p><a href="/static/index.js">Test JS File</a></p>
+        #         </div>
+        #     </body>
+        #     </html>
         """
 
-    @app.route("/upload", methods=["POST"])
-    def upload_image():
-        """圖片上傳和處理路由"""
-        if not request.is_json:
-            return jsonify({"error": "Invalid content type. JSON expected."}), 415
-
-        data = request.get_json()
-        image_data = data.get("image")
-
-        if not image_data or "," not in image_data:
-            return jsonify({"error": "Invalid or missing image data"}), 400
-
-        try:
-            # 解碼 base64 圖片
-            image_binary = base64.b64decode(image_data.split(",")[1])
-
-            try:
-                image = Image.open(BytesIO(image_binary)).convert("RGB")
-            except UnidentifiedImageError:
-                return jsonify({"error": "無法辨識圖片格式"}), 400
-
-            # 創建臨時文件
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", mode="wb") as temp_file:
-                image.save(temp_file, format="JPEG")
-                temp_file.flush()
-                os.fsync(temp_file.fileno())
-                temp_file_path = temp_file.name
-
-            # 圖像處理
-            try:
-                print(f"[DEBUG] Calling process_image() with {temp_file_path}")
-                result = process_image(temp_file_path)
-                print(f"[DEBUG] process_image result: {result}")
-            except Exception as e:
-                print(f"[ERROR] process_image failed: {e}")
-                import traceback
-                traceback.print_exc()
-                return jsonify({"error": "圖片處理失敗", "details": str(e)}), 500
-
-            # 清理臨時檔案
-            try:
-                shutil.rmtree("./temp_imgs", ignore_errors=True)
-                os.remove(temp_file_path)
-            except Exception as e:
-                print(f"Error cleaning up temp files: {e}")
-
-            # 回傳結果
-            return jsonify({"message": "Image processed successfully", "result": result})
-
-        except Exception as e:
-            print(f"Error processing image: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": "Internal server error", "details": str(e)}), 500
-
-
-    @app.route("/api/status")
-    def api_status():
-        return jsonify({
-            "status": "running",
-            "version": "1.0.0",
-            "data_loaded": hasattr(app, 'df') and app.df is not None,
-            "data_rows": len(app.df) if hasattr(app, 'df') and app.df is not None else 0,
-            "endpoints": ["/", "/healthz", "/debug", "/api/status"]
-        })
-
-    print("✓ Routes registered successfully")
-
-    @app.route("/match", methods=["POST"])
-    def match_drug():
-        """藥物比對路由"""
-        try:
-            data = request.get_json()
-            texts = data.get("texts", [])
-            colors = data.get("colors", [])
-            shape = data.get("shape", "")
-
-            if df.empty:
-                return jsonify({"error": "資料庫未載入"}), 500
-
-            # 尋找候選藥物
-            candidates = set()
-
-            # 根據顏色篩選
-            for color in colors:
-                candidates |= set(color_dict.get(color, []))
-
-            # 根據形狀篩選
-            if shape:
-                candidates &= set(shape_dict.get(shape, []))
-
-            if not candidates:
-                return jsonify({"error": "找不到符合顏色與外型的藥品"}), 404
-
-            # 篩選數據
-            df_sub = df[df["用量排序"].isin(candidates)] if "用量排序" in df.columns else df
-
-            # 如果沒有文字或文字為空
-            if not texts or texts == ["None"]:
-                results = []
-                for _, row in df_sub.iterrows():
-                    if str(row.get("文字", "")).strip() not in ["F:NONE|B:NONE", "F:None|B:None"]:
-                        continue
-
-                    # 尋找藥物圖片
-                    picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
-                    picture_base64 = ""
-                    if os.path.exists(picture_path):
-                        try:
-                            with open(picture_path, "rb") as f:
-                                picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-                        except Exception as e:
-                            print(f"Error reading picture {picture_path}: {e}")
-
-                    results.append({
-                        "name": safe_get(row, "學名"),
-                        "symptoms": safe_get(row, "適應症"),
-                        "precautions": safe_get(row, "用藥指示與警語"),
-                        "side_effects": safe_get(row, "副作用"),
-                        "drug_image": picture_base64
-                    })
-
-                return jsonify({"candidates": results})
-
-            # 進行 OCR 比對 - 這個函數需要你實作或匯入
-            try:
-                # match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
-                # 暫時的替代方案
-                match_result = {"front": {"row": df_sub.iloc[0] if not df_sub.empty else None}}
-            except NameError:
-                return jsonify({"error": "OCR 比對功能未實作"}), 500
-
-            row = match_result.get("front", {}).get("row") or match_result.get("back", {}).get("row")
-
-            if isinstance(row, pd.Series):
-                row = row.to_dict()
-
-            if isinstance(row, dict):
-                # 尋找藥物圖片
-                picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
-                picture_base64 = ""
-                if os.path.exists(picture_path):
-                    try:
-                        with open(picture_path, "rb") as f:
-                            picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-                    except Exception as e:
-                        print(f"Error reading picture {picture_path}: {e}")
-
-                return jsonify({
-                    "name": safe_get(row, "學名"),
-                    "symptoms": safe_get(row, "適應症"),
-                    "precautions": safe_get(row, "用藥指示與警語"),
-                    "side_effects": safe_get(row, "副作用"),
-                    "drug_image": picture_base64
-                })
-
-            return jsonify({"error": "無法比對藥品"}), 404
-
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": "Internal server error", "details": str(e)}), 500
+    # @app.route("/upload", methods=["POST"])
+    # def upload_image():
+    #     """
+        圖片上傳和處理路由
+        """
+            #     if not request.is_json:
+            #         return jsonify({"error": "Invalid content type. JSON expected."}), 415
+            # 
+            #     data = request.get_json()
+            #     image_data = data.get("image")
+            # 
+            #     if not image_data or "," not in image_data:
+            #         return jsonify({"error": "Invalid or missing image data"}), 400
+            # 
+            #     try:
+            #         # 解碼 base64 圖片
+            #         image_binary = base64.b64decode(image_data.split(",")[1])
+            # 
+            #         try:
+            #             image = Image.open(BytesIO(image_binary)).convert("RGB")
+            #         except UnidentifiedImageError:
+            #             return jsonify({"error": "無法辨識圖片格式"}), 400
+            # 
+            #         # 創建臨時文件
+            #         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", mode="wb") as temp_file:
+            #             image.save(temp_file, format="JPEG")
+            #             temp_file.flush()
+            #             os.fsync(temp_file.fileno())
+            #             temp_file_path = temp_file.name
+            # 
+            #         # 圖像處理
+            #         try:
+            #             print(f"[DEBUG] Calling process_image() with {temp_file_path}")
+            #             result = process_image(temp_file_path)
+            #             print(f"[DEBUG] process_image result: {result}")
+            #         except Exception as e:
+            #             print(f"[ERROR] process_image failed: {e}")
+            #             import traceback
+            #             traceback.print_exc()
+            #             return jsonify({"error": "圖片處理失敗", "details": str(e)}), 500
+            # 
+            #         # 清理臨時檔案
+            #         try:
+            #             shutil.rmtree("./temp_imgs", ignore_errors=True)
+            #             os.remove(temp_file_path)
+            #         except Exception as e:
+            #             print(f"Error cleaning up temp files: {e}")
+            # 
+            #         # 回傳結果
+            #         return jsonify({"message": "Image processed successfully", "result": result})
+            # 
+            #     except Exception as e:
+            #         print(f"Error processing image: {e}")
+            #         import traceback
+            #         traceback.print_exc()
+            #         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+        
+        
+            # @app.route("/api/status")
+            # def api_status():
+            #     return jsonify({
+            #         "status": "running",
+            #         "version": "1.0.0",
+            #         "data_loaded": hasattr(app, 'df') and app.df is not None,
+            #         "data_rows": len(app.df) if hasattr(app, 'df') and app.df is not None else 0,
+            #         "endpoints": ["/", "/healthz", "/debug", "/api/status"]
+            #     })
+            # 
+            # print("✓ Routes registered successfully")
+            # 
+            # @app.route("/match", methods=["POST"])
+            # def match_drug():
+            #     try:
+            #         data = request.get_json()
+            #         texts = data.get("texts", [])
+            #         colors = data.get("colors", [])
+            #         shape = data.get("shape", "")
+            # 
+            #         if df.empty:
+            #             return jsonify({"error": "資料庫未載入"}), 500
+            # 
+            #         # 尋找候選藥物
+            #         candidates = set()
+            # 
+            #         # 根據顏色篩選
+            #         for color in colors:
+            #             candidates |= set(color_dict.get(color, []))
+            # 
+            #         # 根據形狀篩選
+            #         if shape:
+            #             candidates &= set(shape_dict.get(shape, []))
+            # 
+            #         if not candidates:
+            #             return jsonify({"error": "找不到符合顏色與外型的藥品"}), 404
+            # 
+            #         # 篩選數據
+            #         df_sub = df[df["用量排序"].isin(candidates)] if "用量排序" in df.columns else df
+            # 
+            #         # 如果沒有文字或文字為空
+            #         if not texts or texts == ["None"]:
+            #             results = []
+            #             for _, row in df_sub.iterrows():
+            #                 if str(row.get("文字", "")).strip() not in ["F:NONE|B:NONE", "F:None|B:None"]:
+            #                     continue
+            # 
+            #                 # 尋找藥物圖片
+            #                 picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
+            #                 picture_base64 = ""
+            #                 if os.path.exists(picture_path):
+            #                     try:
+            #                         with open(picture_path, "rb") as f:
+            #                             picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+            #                     except Exception as e:
+            #                         print(f"Error reading picture {picture_path}: {e}")
+            # 
+            #                 results.append({
+            #                     "name": safe_get(row, "學名"),
+            #                     "symptoms": safe_get(row, "適應症"),
+            #                     "precautions": safe_get(row, "用藥指示與警語"),
+            #                     "side_effects": safe_get(row, "副作用"),
+            #                     "drug_image": picture_base64
+            #                 })
+            # 
+            #             return jsonify({"candidates": results})
+            # 
+            #         # 進行 OCR 比對 - 這個函數需要你實作或匯入
+            #         try:
+            #             # match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
+            #             # 暫時的替代方案
+            #             match_result = {"front": {"row": df_sub.iloc[0] if not df_sub.empty else None}}
+            #         except NameError:
+            #             return jsonify({"error": "OCR 比對功能未實作"}), 500
+            # 
+            #         row = match_result.get("front", {}).get("row") or match_result.get("back", {}).get("row")
+            # 
+            #         if isinstance(row, pd.Series):
+            #             row = row.to_dict()
+            # 
+            #         if isinstance(row, dict):
+            #             # 尋找藥物圖片
+            #             picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
+            #             picture_base64 = ""
+            #             if os.path.exists(picture_path):
+            #                 try:
+            #                     with open(picture_path, "rb") as f:
+            #                         picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+            #                 except Exception as e:
+            #                     print(f"Error reading picture {picture_path}: {e}")
+            # 
+            #             return jsonify({
+            #                 "name": safe_get(row, "學名"),
+            #                 "symptoms": safe_get(row, "適應症"),
+            #                 "precautions": safe_get(row, "用藥指示與警語"),
+            #                 "side_effects": safe_get(row, "副作用"),
+            #                 "drug_image": picture_base64
+            #             })
+            # 
+            #         return jsonify({"error": "無法比對藥品"}), 404
+            # 
+            #     except Exception as e:
+            #         import traceback
+            #         traceback.print_exc()
+            #         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+"""
