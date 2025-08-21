@@ -514,11 +514,11 @@ def register_routes(app, data_status):
 
             # 圖像處理
             try:
-                print(f"[DEBUG] Calling process_image() with {temp_file_path}")
+                logger.info(f"[DEBUG] Calling process_image() with {temp_file_path}")
                 result = process_image(temp_file_path)
-                print(f"[DEBUG] process_image result: {result}")
+                logger.info(f"[DEBUG] process_image result: {result}")
             except Exception as e:
-                print(f"[ERROR] process_image failed: {e}")
+                logger.info(f"[ERROR] process_image failed: {e}")
                 import traceback
                 traceback.print_exc()
                 return jsonify({"error": "圖片處理失敗", "details": str(e)}), 500
@@ -528,7 +528,7 @@ def register_routes(app, data_status):
                 shutil.rmtree("./temp_imgs", ignore_errors=True)
                 os.remove(temp_file_path)
             except Exception as e:
-                print(f"Error cleaning up temp files: {e}")
+                logger.info(f"Error cleaning up temp files: {e}")
 
             # 回傳結果
             return jsonify({"message": "Image processed successfully", "result": result})
@@ -583,7 +583,7 @@ def register_routes(app, data_status):
                             with open(picture_path, "rb") as f:
                                 picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
                         except Exception as e:
-                            print(f"Error reading picture {picture_path}: {e}")
+                            logger.info(f"Error reading picture {picture_path}: {e}")
 
                     results.append({
                         "name": safe_get(row, "學名"),
@@ -617,7 +617,7 @@ def register_routes(app, data_status):
                         with open(picture_path, "rb") as f:
                             picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
                     except Exception as e:
-                        print(f"Error reading picture {picture_path}: {e}")
+                        logger.info(f"Error reading picture {picture_path}: {e}")
 
                 return jsonify({
                     "name": safe_get(row, "學名"),
