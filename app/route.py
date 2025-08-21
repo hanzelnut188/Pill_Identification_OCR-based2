@@ -194,7 +194,6 @@ import base64
 import tempfile
 import shutil
 
-
 # 假設這些是從其他模組匯入的變數和函數
 # 你需要根據實際情況調整匯入
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -371,26 +370,32 @@ def register_routes(app, data_status):
         </html>
         """
 
-
     @app.route("/upload", methods=["POST"])
     def upload_image():
         """圖片上傳和處理路由"""
+        print("🟡 [UPLOAD] 收到 POST 請求")
         if not request.is_json:
+            print("🔴 [UPLOAD] Content-Type 錯誤，應為 application/json")
             return jsonify({"error": "Invalid content type. JSON expected."}), 415
 
         data = request.get_json()
         image_data = data.get("image")
+        print(f"🟡 [UPLOAD] 解析 JSON 成功，是否有 image 欄位：{bool(image_data)}")
 
         if not image_data or "," not in image_data:
+            print("🔴 [UPLOAD] image 欄位缺失或格式錯誤")
             return jsonify({"error": "Invalid or missing image data"}), 400
 
         try:
             # 解碼 base64 圖片
+            print("🟡 [UPLOAD] 開始解碼 base64 圖片")
             image_binary = base64.b64decode(image_data.split(",")[1])
 
             try:
                 image = Image.open(BytesIO(image_binary)).convert("RGB")
+                print("🟢 [UPLOAD] 圖片成功解碼並轉為 RGB")
             except UnidentifiedImageError:
+                print("🔴 [UPLOAD] PIL 無法辨識圖片格式")
                 return jsonify({"error": "無法辨識圖片格式"}), 400
 
             # 創建臨時文件
@@ -399,7 +404,7 @@ def register_routes(app, data_status):
                 temp_file.flush()
                 os.fsync(temp_file.fileno())
                 temp_file_path = temp_file.name
-
+            print(f"🟢 [UPLOAD] 圖片寫入臨時檔成功：{temp_file_path}")
             # 圖像處理
             try:
                 print(f"[DEBUG] Calling process_image() with {temp_file_path}")
@@ -443,34 +448,44 @@ def register_routes(app, data_status):
     @app.route("/match", methods=["POST"])
     def match_drug():
         """藥物比對路由"""
+        print("🟡 [MATCH] 收到請求")
         try:
             data = request.get_json()
+            print(
+                f"🟡 [MATCH] 請求內容：texts={data.get('texts')}, colors={data.get('colors')}, shape={data.get('shape')}")
             texts = data.get("texts", [])
             colors = data.get("colors", [])
             shape = data.get("shape", "")
 
             if df.empty:
+                print("🔴 [MATCH] 錯誤：資料庫未載入")
                 return jsonify({"error": "資料庫未載入"}), 500
-
+            print("🟡 [MATCH] 開始篩選候選藥物")
             # 尋找候選藥物
             candidates = set()
 
             # 根據顏色篩選
             for color in colors:
+                print(f"    - 顏色篩選：{color} ➜ {len(color_dict.get(color, []))} 筆")
                 candidates |= set(color_dict.get(color, []))
 
             # 根據形狀篩選
             if shape:
+                before_shape = len(candidates)  # 之後可刪
                 candidates &= set(shape_dict.get(shape, []))
-
+                print(f"    - 外型交集：{shape} ➜ 從 {before_shape} 筆減為 {len(candidates)} 筆")
             if not candidates:
+                print("🔴 [MATCH] 沒有符合的候選藥物")
                 return jsonify({"error": "找不到符合顏色與外型的藥品"}), 404
+
+            print("[DEBUG] STEP 3 - 顏色候選數量", len(candidates))
 
             # 篩選數據
             df_sub = df[df["用量排序"].isin(candidates)] if "用量排序" in df.columns else df
-
+            print(f"🟡 [MATCH] 經過篩選剩下 {len(df_sub)} 筆藥物")
             # 如果沒有文字或文字為空
             if not texts or texts == ["None"]:
+                print("🟡 [MATCH] 無文字情境，搜尋純顏色/外型比對結果")
                 results = []
                 for _, row in df_sub.iterrows():
                     if str(row.get("文字", "")).strip() not in ["F:NONE|B:NONE", "F:None|B:None"]:
@@ -495,11 +510,12 @@ def register_routes(app, data_status):
                     })
 
                 return jsonify({"candidates": results})
-
+            print("[DEBUG] STEP 4 - Shape", shape)
             # 進行 OCR 比對 - 這個函數需要你實作或匯入
             try:
                 # match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
                 # 暫時的替代方案
+                print(f"🟡 [MATCH] 有文字，要進行比對 ➜ {texts}")
                 match_result = {"front": {"row": df_sub.iloc[0] if not df_sub.empty else None}}
             except NameError:
                 return jsonify({"error": "OCR 比對功能未實作"}), 500
@@ -519,7 +535,7 @@ def register_routes(app, data_status):
                             picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
                     except Exception as e:
                         print(f"Error reading picture {picture_path}: {e}")
-
+                print("🟢 [MATCH] 比對完成，準備回傳")
                 return jsonify({
                     "name": safe_get(row, "學名"),
                     "symptoms": safe_get(row, "適應症"),
