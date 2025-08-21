@@ -94,7 +94,7 @@
 #     print("=== DEBUG: create_app() completed successfully ===")
 #     return app
 
-from app.route import register_routes
+from .route import upload_image  # 強迫導入，看會不會報錯
 
 import os
 import sys
@@ -230,6 +230,7 @@ def create_app():
     register_routes(app, data_status)
     print("=== DEBUG: create_app() completed successfully ===")
     return app
+
 
 
 def get_fallback_html():

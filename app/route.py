@@ -188,6 +188,8 @@ import os
 import base64
 import tempfile
 import shutil
+import traceback
+
 import pandas as pd
 from flask import request, jsonify, render_template
 from PIL import Image, UnidentifiedImageError
@@ -269,6 +271,7 @@ print("=== DEBUG: app/__init__.py loaded successfully ===")
 
 
 def register_routes(app, data_status):
+    """註冊路由"""
     """註冊所有路由到 Flask app"""
 
     # 從 app 取得數據，如果沒有則創建空的 DataFrame
@@ -352,13 +355,29 @@ def register_routes(app, data_status):
 
     @app.route("/")
     def index():
+        print("=== DEBUG: Rendering index page ===")
+
         try:
-            print("=== DEBUG: Rendering index page ===")
-            # 使用 Flask 的 render_template 而不是手動讀取
-            return render_template("index.html")
+            # 直接使用 render_template，應該現在能工作了
+            result = render_template('index.html')
+            print("✓ Template rendered successfully using render_template")
+            return result
+
         except Exception as e:
-            print(f"Error rendering template: {e}")
-            return get_fallback_html()
+            print(f"❌ render_template failed: {e}")
+            print(f"Full traceback: {traceback.format_exc()}")
+
+            # 回退到手動讀取
+            print("Using manual file read as fallback...")
+            try:
+                template_path = os.path.join(app.template_folder, "index.html")
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                print("✓ Manual file read successful")
+                return content
+            except Exception as fallback_error:
+                print(f"❌ Manual fallback also failed: {fallback_error}")
+                return get_fallback_html()
 
     @app.route("/healthz")
     def healthz():
@@ -382,6 +401,14 @@ def register_routes(app, data_status):
                 "static_url_path": app.static_url_path
             }
         }
+
+        # 測試模板系統
+        try:
+            template_loader = app.jinja_env.loader
+            template_source = template_loader.get_source(app.jinja_env, 'index.html')
+            info["template_test"] = "✓ Flask can find index.html"
+        except Exception as e:
+            info["template_test"] = f"❌ Flask cannot find template: {str(e)}"
 
         # 列出文件
         try:
@@ -416,23 +443,29 @@ def register_routes(app, data_status):
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Debug Info</title>
+            <title>Fixed Template Debug Info</title>
             <style>
                 body {{ font-family: monospace; margin: 20px; }}
                 pre {{ background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto; }}
                 .section {{ margin: 20px 0; }}
                 h2 {{ color: #333; border-bottom: 2px solid #ccc; }}
+                .error {{ background: #ffe6e6; border-left: 4px solid #ff4444; padding: 10px; }}
+                .success {{ background: #e6ffe6; border-left: 4px solid #44ff44; padding: 10px; }}
+                .warning {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; }}
             </style>
         </head>
         <body>
-            <h1>🔍 Debug Information</h1>
+            <h1>🔧 Fixed Template Path Debug</h1>
             <div class="section">
-                <h2>System Status</h2>
+                <h2>Template System Test</h2>
+                <div class="success" style="margin: 10px 0;">
+                    <strong>Status:</strong> {info.get('template_test', 'Unknown')}
+                </div>
                 <pre>{json.dumps(info, indent=2, ensure_ascii=False)}</pre>
             </div>
             <div class="section">
                 <h2>Quick Links</h2>
-                <p><a href="/">← Back to Home</a></p>
+                <p><a href="/">← Try Home Again</a></p>
                 <p><a href="/api/status">API Status</a></p>
                 <p><a href="/static/index.css">Test CSS File</a></p>
                 <p><a href="/static/index.js">Test JS File</a></p>
@@ -441,7 +474,21 @@ def register_routes(app, data_status):
         </html>
         """
 
+    @app.route("/api/status")
+    def api_status():
+        return jsonify({
+            "status": "running",
+            "version": "1.0.0",
+            "data_loaded": hasattr(app, 'df') and app.df is not None,
+            "data_rows": len(app.df) if hasattr(app, 'df') and app.df is not None else 0,
+            "endpoints": ["/", "/healthz", "/debug", "/api/status"]
+        })
+
+    print("✓ Routes registered successfully")
+
     @app.route("/upload", methods=["POST"])
+
+
     def upload_image():
         """圖片上傳和處理路由"""
         if not request.is_json:
@@ -496,17 +543,6 @@ def register_routes(app, data_status):
             traceback.print_exc()
             return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
-    @app.route("/api/status")
-    def api_status():
-        return jsonify({
-            "status": "running",
-            "version": "1.0.0",
-            "data_loaded": hasattr(app, 'df') and app.df is not None,
-            "data_rows": len(app.df) if hasattr(app, 'df') and app.df is not None else 0,
-            "endpoints": ["/", "/healthz", "/debug", "/api/status"]
-        })
-
-    print("✓ Routes registered successfully")
 
     @app.route("/match", methods=["POST"])
     def match_drug():
