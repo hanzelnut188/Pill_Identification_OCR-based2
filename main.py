@@ -8,12 +8,9 @@
 #     app.run(host="0.0.0.0", port=port, debug=False)
 # 步驟 1：恢復應用工廠模式
 # main.py
-import os
-import logging
-from pathlib import Path
+
 
 import os
-import traceback
 
 try:
     from app import create_app, logger

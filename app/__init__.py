@@ -95,12 +95,26 @@
 #     return app
 
 
+import base64
+import sys
+import tempfile
+import shutil
+import pandas as pd
+from flask import request
+from PIL import Image, UnidentifiedImageError
+from io import BytesIO
+
+from app.utils.pill_detection import process_image
 import os
 import logging
-from pathlib import Path
 import traceback
 
-logging.basicConfig(level=logging.INFO)
+# 設置更詳細的日誌配置
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
 logger = logging.getLogger(__name__)
 
 logger.info("=== Starting app/__init__.py ===")
@@ -120,9 +134,13 @@ try:
 except Exception as e:
     logger.error(f"✗ Error importing Flask-CORS: {e}")
 
+# 在這裡添加一個測試點
+logger.info("=== About to define create_app function ===")
+
 
 def create_app():
-    print("=== DEBUG: create_app() called ===")
+    """創建 Flask 應用程式"""
+    logger.info("=== create_app() function called ===")
 
     # 🔥 修正路徑問題 - 使用絕對路徑
     base_dir = os.getcwd()
@@ -234,17 +252,6 @@ def create_app():
     logger.info("=== DEBUG: create_app() completed successfully ===")
     return app
 
-
-import os
-import base64
-import tempfile
-import shutil
-import pandas as pd
-from flask import request, jsonify, render_template
-from PIL import Image, UnidentifiedImageError
-from io import BytesIO
-
-from app.utils.pill_detection import process_image
 
 # 假設這些是從其他模組匯入的變數和函數
 # 你需要根據實際情況調整匯入
