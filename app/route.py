@@ -496,7 +496,6 @@ def register_routes(app, data_status):
             traceback.print_exc()
             return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
-
     @app.route("/api/status")
     def api_status():
         return jsonify({
