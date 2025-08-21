@@ -185,15 +185,15 @@
 #         return "ok", 200
 
 import os
-import base64
-import tempfile
-import shutil
 import pandas as pd
 from flask import request, jsonify, render_template
-from PIL import Image, UnidentifiedImageError
-from io import BytesIO
 
-from app.utils.pill_detection import process_image
+# from PIL import Image, UnidentifiedImageError
+# from io import BytesIO
+# import base64
+# import tempfile
+# import shutil
+# from app.utils.pill_detection import process_image
 
 # 假設這些是從其他模組匯入的變數和函數
 # 你需要根據實際情況調整匯入
@@ -278,6 +278,7 @@ def register_routes(app, data_status):
     # 這裡假設它們是從數據中建立的索引
     color_dict = getattr(app, 'color_dict', {})
     shape_dict = getattr(app, 'shape_dict', {})
+
     @app.route("/")
     def index():
         try:
@@ -369,6 +370,7 @@ def register_routes(app, data_status):
         </body>
         </html>
         """
+
     #
     # @app.route("/upload", methods=["POST"])
     # def upload_image():
