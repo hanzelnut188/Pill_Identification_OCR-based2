@@ -193,6 +193,8 @@ from flask import request, jsonify, render_template
 from PIL import Image, UnidentifiedImageError
 from io import BytesIO
 
+from app.utils.pill_detection import process_image
+
 # 假設這些是從其他模組匯入的變數和函數
 # 你需要根據實際情況調整匯入
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -470,7 +472,7 @@ def register_routes(app, data_status):
             # 處理圖片 - 這個函數需要你實作或匯入
             try:
                 # result = process_image(temp_file_path)
-                result = {"message": "Image processing not implemented yet"}
+                result = process_image(temp_file_path)  # 假設 process_image 是你實作的函數
             except NameError:
                 result = {"message": "Process image function not found"}
 
