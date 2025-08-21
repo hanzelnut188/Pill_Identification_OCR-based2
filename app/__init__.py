@@ -1,164 +1,52 @@
-# import os
-# import sys
-#
-# from app.route import register_routes
-# #路徑沒問題
-# print("=== DEBUG: Starting app/__init__.py ===")
-# print(f"Current working directory: {os.getcwd()}")
-#
-# try:
-#     from flask import Flask, jsonify, render_template
-#
-#     print("✓ Flask and render_template imported successfully")
-# except Exception as e:
-#     print(f"✗ Error importing Flask: {e}")
-#
-# try:
-#     from flask_cors import CORS
-#
-#     print("✓ Flask-CORS imported successfully")
-# except Exception as e:
-#     print(f"✗ Error importing Flask-CORS: {e}")
-#
-#
-# def create_app():
-#     print("=== DEBUG: create_app() called ===")
-#
-#     # 簡化路徑設定 - 根據DEBUG_INFO，我們知道正確路徑
-#     template_folder = "app/templates"
-#     # static_folder = "app/static"
-#     static_folder = os.path.join(os.path.dirname(__file__), "static")
-#
-#
-#     print(f"Using template folder: {template_folder}")
-#     print(f"Using static folder: {static_folder}")
-#
-#     # 檢查路徑是否存在
-#     if os.path.exists(template_folder):
-#         print(f"✓ Template folder exists: {template_folder}")
-#         try:
-#             template_files = os.listdir(template_folder)
-#             print(f"  Template files: {template_files}")
-#         except Exception as e:
-#             print(f"  Error listing template files: {e}")
-#     else:
-#         print(f"✗ Template folder not found: {template_folder}")
-#
-#     if os.path.exists(static_folder):
-#         print(f"✓ Static folder exists: {static_folder}")
-#         try:
-#             static_files = os.listdir(static_folder)
-#             print(f"  Static files: {static_files}")
-#         except Exception as e:
-#             print(f"  Error listing static files: {e}")
-#     else:
-#         print(f"✗ Static folder not found: {static_folder}")
-#
-#     try:
-#         # 創建 Flask app - 使用正確的路徑設定
-#         app = Flask(
-#             __name__,
-#             template_folder=template_folder,
-#             static_folder=static_folder,
-#             static_url_path='/static'
-#         )
-#         print(f"✓ Flask app created")
-#         print(f"  Template folder: {app.template_folder}")
-#         print(f"  Static folder: {app.static_folder}")
-#         print(f"  Static URL path: {app.static_url_path}")
-#
-#     except Exception as e:
-#         print(f"✗ Error creating Flask app: {e}")
-#         raise
-#
-#     try:
-#         CORS(app)
-#         print("✓ CORS configured")
-#     except Exception as e:
-#         print(f"✗ Error configuring CORS: {e}")
-#
-#     # 數據載入
-#     try:
-#         import pandas as pd
-#         df = pd.read_excel("data/TESTData.xlsx")
-#         print(f"✓ Successfully loaded Excel with {len(df)} rows")
-#         data_status = f"Data loaded: {len(df)} rows"
-#         app.df = df
-#     except Exception as e:
-#         print(f"✗ Error loading data: {e}")
-#         data_status = f"Data load failed: {str(e)}"
-#         app.df = None
-#
-#     # 註冊路由
-#     register_routes(app, data_status)
-#     print("=== DEBUG: create_app() completed successfully ===")
-#     return app
-
-
-import sys
-
-from app.utils.pill_detection import process_image
-import logging
 import os
 import traceback
 
-# 設置更詳細的日誌配置
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stdout
-)
-logger = logging.getLogger(__name__)
-
-logger.info("=== Starting app/__init__.py ===")
-logger.info(f"Current working directory: {os.getcwd()}")
-
-logger.info("=== DEBUG: Starting app/__init__.py ===")
-logger.info(f"Current working directory: {os.getcwd()}")
+print("=== DEBUG: Starting app/__init__.py ===")
+print(f"Current working directory: {os.getcwd()}")
 
 try:
     from flask import Flask, jsonify, render_template
 
-    logger.info("✓ Flask and render_template imported successfully")
+    print("✓ Flask and render_template imported successfully")
 except Exception as e:
-    logger.info(f"✗ Error importing Flask: {e}")
+    print(f"✗ Error importing Flask: {e}")
 
 try:
     from flask_cors import CORS
 
-    logger.info("✓ Flask-CORS imported successfully")
+    print("✓ Flask-CORS imported successfully")
 except Exception as e:
-    logger.info(f"✗ Error importing Flask-CORS: {e}")
+    print(f"✗ Error importing Flask-CORS: {e}")
 
 
 def create_app():
-    logger.info("=== DEBUG: create_app() called ===")
+    print("=== DEBUG: create_app() called ===")
 
     # 🔥 修正路徑問題 - 使用絕對路徑
     base_dir = os.getcwd()
     template_folder = os.path.join(base_dir, "app", "templates")
     static_folder = os.path.join(base_dir, "app", "static")
 
-    logger.info(f"Base directory: {base_dir}")
-    logger.info(f"Using template folder: {template_folder}")
-    logger.info(f"Using static folder: {static_folder}")
+    print(f"Base directory: {base_dir}")
+    print(f"Using template folder: {template_folder}")
+    print(f"Using static folder: {static_folder}")
 
     # 檢查路徑是否存在
     if os.path.exists(template_folder):
-        logger.info(f"✓ Template folder exists: {template_folder}")
+        print(f"✓ Template folder exists: {template_folder}")
         try:
             template_files = os.listdir(template_folder)
-            logger.info(f"  Template files: {template_files}")
+            print(f"  Template files: {template_files}")
 
             # 檢查 index.html 具體路徑
             index_path = os.path.join(template_folder, "index.html")
-            logger.info(f"  Index.html path: {index_path}")
-            logger.info(f"  Index.html exists: {os.path.exists(index_path)}")
+            print(f"  Index.html path: {index_path}")
+            print(f"  Index.html exists: {os.path.exists(index_path)}")
 
         except Exception as e:
-            logger.info(f"  Error listing template files: {e}")
+            print(f"  Error listing template files: {e}")
     else:
-        logger.info(f"✗ Template folder not found: {template_folder}")
+        print(f"✗ Template folder not found: {template_folder}")
         # 嘗試其他可能的路徑
         alternative_paths = [
             os.path.join(base_dir, "templates"),
@@ -168,18 +56,18 @@ def create_app():
         for alt_path in alternative_paths:
             if os.path.exists(alt_path):
                 template_folder = alt_path
-                logger.info(f"✓ Found alternative template folder: {alt_path}")
+                print(f"✓ Found alternative template folder: {alt_path}")
                 break
 
     if os.path.exists(static_folder):
-        logger.info(f"✓ Static folder exists: {static_folder}")
+        print(f"✓ Static folder exists: {static_folder}")
         try:
             static_files = os.listdir(static_folder)
-            logger.info(f"  Static files: {static_files}")
+            print(f"  Static files: {static_files}")
         except Exception as e:
-            logger.info(f"  Error listing static files: {e}")
+            print(f"  Error listing static files: {e}")
     else:
-        logger.info(f"✗ Static folder not found: {static_folder}")
+        print(f"✗ Static folder not found: {static_folder}")
         # 嘗試其他可能的路徑
         alternative_static_paths = [
             os.path.join(base_dir, "static"),
@@ -189,7 +77,7 @@ def create_app():
         for alt_path in alternative_static_paths:
             if os.path.exists(alt_path):
                 static_folder = alt_path
-                logger.info(f"✓ Found alternative static folder: {alt_path}")
+                print(f"✓ Found alternative static folder: {alt_path}")
                 break
 
     try:
@@ -200,48 +88,48 @@ def create_app():
             static_folder=static_folder,
             static_url_path='/static'
         )
-        logger.info(f"✓ Flask app created")
-        logger.info(f"  Template folder (actual): {app.template_folder}")
-        logger.info(f"  Static folder (actual): {app.static_folder}")
-        logger.info(f"  Static URL path: {app.static_url_path}")
+        print(f"✓ Flask app created")
+        print(f"  Template folder (actual): {app.template_folder}")
+        print(f"  Static folder (actual): {app.static_folder}")
+        print(f"  Static URL path: {app.static_url_path}")
 
         # 🔥 驗證 Flask 能找到模板
         try:
             template_loader = app.jinja_env.loader
-            logger.info(f"  Jinja2 loader: {template_loader}")
+            print(f"  Jinja2 loader: {template_loader}")
 
             # 測試模板載入
             template_source = template_loader.get_source(app.jinja_env, 'index.html')
-            logger.info("✓ Flask can find index.html template")
+            print("✓ Flask can find index.html template")
 
         except Exception as template_test_error:
-            logger.info(f"❌ Flask cannot find template: {template_test_error}")
+            print(f"❌ Flask cannot find template: {template_test_error}")
 
     except Exception as e:
-        logger.info(f"✗ Error creating Flask app: {e}")
+        print(f"✗ Error creating Flask app: {e}")
         raise
 
     try:
         CORS(app)
-        logger.info("✓ CORS configured")
+        print("✓ CORS configured")
     except Exception as e:
-        logger.info(f"✗ Error configuring CORS: {e}")
+        print(f"✗ Error configuring CORS: {e}")
 
     # 數據載入
     try:
         import pandas as pd
         df = pd.read_excel("data/TESTData.xlsx")
-        logger.info(f"✓ Successfully loaded Excel with {len(df)} rows")
+        print(f"✓ Successfully loaded Excel with {len(df)} rows")
         data_status = f"Data loaded: {len(df)} rows"
         app.df = df
     except Exception as e:
-        logger.info(f"✗ Error loading data: {e}")
+        print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
         app.df = None
 
     # 註冊路由
     register_routes(app, data_status)
-    logger.info("=== DEBUG: create_app() completed successfully ===")
+    print("=== DEBUG: create_app() completed successfully ===")
     return app
 
 
@@ -250,28 +138,28 @@ def register_routes(app, data_status):
 
     @app.route("/")
     def index():
-        logger.info("=== DEBUG: Rendering index page ===")
+        print("=== DEBUG: Rendering index page ===")
 
         try:
             # 直接使用 render_template，應該現在能工作了
             result = render_template('index.html')
-            logger.info("✓ Template rendered successfully using render_template")
+            print("✓ Template rendered successfully using render_template")
             return result
 
         except Exception as e:
-            logger.info(f"❌ render_template failed: {e}")
-            logger.info(f"Full traceback: {traceback.format_exc()}")
+            print(f"❌ render_template failed: {e}")
+            print(f"Full traceback: {traceback.format_exc()}")
 
             # 回退到手動讀取
-            logger.info("Using manual file read as fallback...")
+            print("Using manual file read as fallback...")
             try:
                 template_path = os.path.join(app.template_folder, "index.html")
                 with open(template_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                logger.info("✓ Manual file read successful")
+                print("✓ Manual file read successful")
                 return content
             except Exception as fallback_error:
-                logger.info(f"❌ Manual fallback also failed: {fallback_error}")
+                print(f"❌ Manual fallback also failed: {fallback_error}")
                 return get_fallback_html()
 
     @app.route("/healthz")
@@ -379,7 +267,7 @@ def register_routes(app, data_status):
             "endpoints": ["/", "/healthz", "/debug", "/api/status"]
         })
 
-    logger.info("✓ Routes registered successfully")
+    print("✓ Routes registered successfully")
 
 
 def get_fallback_html():
@@ -432,4 +320,4 @@ def get_fallback_html():
 </html>"""
 
 
-logger.info("=== DEBUG: app/__init__.py loaded successfully ===")
+print("=== DEBUG: app/__init__.py loaded successfully ===")
