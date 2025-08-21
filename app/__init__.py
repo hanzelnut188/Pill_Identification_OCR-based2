@@ -94,7 +94,7 @@
 #     print("=== DEBUG: create_app() completed successfully ===")
 #     return app
 
-from .route import upload_image  # 強迫導入，看會不會報錯
+from .route import  register_routes  # 強迫導入，看會不會報錯
 
 import os
 import sys
