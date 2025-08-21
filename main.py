@@ -9,14 +9,19 @@
 # 步驟 1：恢復應用工廠模式
 # main.py
 import os
+import logging
+from pathlib import Path
+
+import os
+import traceback
 
 try:
-    from app import create_app
+    from app import create_app, logger
 
     app = create_app()
-    print("✓ Successfully imported and created app")
+    logger.info("✓ Successfully imported and created app")
 except Exception as e:
-    print("✗ Fallback activated due to error:")
+    logger.info("✗ Fallback activated due to error:")
     import traceback
 
     traceback.print_exc()
@@ -37,4 +42,4 @@ except Exception as e:
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)
