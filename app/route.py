@@ -188,11 +188,11 @@ import os
 import pandas as pd
 from flask import request, jsonify, render_template
 
-# from PIL import Image, UnidentifiedImageError
-# from io import BytesIO
+from PIL import Image, UnidentifiedImageError
+from io import BytesIO
 import base64
-# import tempfile
-# import shutil
+import tempfile
+import shutil
 
 
 # 假設這些是從其他模組匯入的變數和函數
@@ -372,61 +372,61 @@ def register_routes(app, data_status):
         """
 
 
-    # @app.route("/upload", methods=["POST"])
-    # def upload_image():
-    #     """圖片上傳和處理路由"""
-    #     if not request.is_json:
-    #         return jsonify({"error": "Invalid content type. JSON expected."}), 415
-    #
-    #     data = request.get_json()
-    #     image_data = data.get("image")
-    #
-    #     if not image_data or "," not in image_data:
-    #         return jsonify({"error": "Invalid or missing image data"}), 400
-    #
-    #     try:
-    #         # 解碼 base64 圖片
-    #         image_binary = base64.b64decode(image_data.split(",")[1])
-    #
-    #         try:
-    #             image = Image.open(BytesIO(image_binary)).convert("RGB")
-    #         except UnidentifiedImageError:
-    #             return jsonify({"error": "無法辨識圖片格式"}), 400
-    #
-    #         # 創建臨時文件
-    #         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", mode="wb") as temp_file:
-    #             image.save(temp_file, format="JPEG")
-    #             temp_file.flush()
-    #             os.fsync(temp_file.fileno())
-    #             temp_file_path = temp_file.name
-    #
-    #         # 圖像處理
-    #         try:
-    #             print(f"[DEBUG] Calling process_image() with {temp_file_path}")
-                # from app.utils.pill_detection import process_image
-    #             result = process_image(temp_file_path)
-    #             print(f"[DEBUG] process_image result: {result}")
-    #         except Exception as e:
-    #             print(f"[ERROR] process_image failed: {e}")
-    #             import traceback
-    #             traceback.print_exc()
-    #             return jsonify({"error": "圖片處理失敗", "details": str(e)}), 500
-    #
-    #         # 清理臨時檔案
-    #         try:
-    #             shutil.rmtree("./temp_imgs", ignore_errors=True)
-    #             os.remove(temp_file_path)
-    #         except Exception as e:
-    #             print(f"Error cleaning up temp files: {e}")
-    #
-    #         # 回傳結果
-    #         return jsonify({"message": "Image processed successfully", "result": result})
-    #
-    #     except Exception as e:
-    #         print(f"Error processing image: {e}")
-    #         import traceback
-    #         traceback.print_exc()
-    #         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+    @app.route("/upload", methods=["POST"])
+    def upload_image():
+        """圖片上傳和處理路由"""
+        if not request.is_json:
+            return jsonify({"error": "Invalid content type. JSON expected."}), 415
+
+        data = request.get_json()
+        image_data = data.get("image")
+
+        if not image_data or "," not in image_data:
+            return jsonify({"error": "Invalid or missing image data"}), 400
+
+        try:
+            # 解碼 base64 圖片
+            image_binary = base64.b64decode(image_data.split(",")[1])
+
+            try:
+                image = Image.open(BytesIO(image_binary)).convert("RGB")
+            except UnidentifiedImageError:
+                return jsonify({"error": "無法辨識圖片格式"}), 400
+
+            # 創建臨時文件
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", mode="wb") as temp_file:
+                image.save(temp_file, format="JPEG")
+                temp_file.flush()
+                os.fsync(temp_file.fileno())
+                temp_file_path = temp_file.name
+
+            # 圖像處理
+            try:
+                print(f"[DEBUG] Calling process_image() with {temp_file_path}")
+                from app.utils.pill_detection import process_image
+                result = process_image(temp_file_path)
+                print(f"[DEBUG] process_image result: {result}")
+            except Exception as e:
+                print(f"[ERROR] process_image failed: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({"error": "圖片處理失敗", "details": str(e)}), 500
+
+            # 清理臨時檔案
+            try:
+                shutil.rmtree("./temp_imgs", ignore_errors=True)
+                os.remove(temp_file_path)
+            except Exception as e:
+                print(f"Error cleaning up temp files: {e}")
+
+            # 回傳結果
+            return jsonify({"message": "Image processed successfully", "result": result})
+
+        except Exception as e:
+            print(f"Error processing image: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
     @app.route("/api/status")
     def api_status():
