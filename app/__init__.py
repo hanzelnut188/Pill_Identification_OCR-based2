@@ -120,10 +120,12 @@ except Exception as e:
 def create_app():
     print("=== DEBUG: create_app() called ===")
 
-    # 簡化路徑設定
-    template_folder = "app/templates"
-    static_folder = "app/static"
+    # 🔥 修正路徑問題 - 使用絕對路徑
+    base_dir = os.getcwd()
+    template_folder = os.path.join(base_dir, "app", "templates")
+    static_folder = os.path.join(base_dir, "app", "static")
 
+    print(f"Base directory: {base_dir}")
     print(f"Using template folder: {template_folder}")
     print(f"Using static folder: {static_folder}")
 
@@ -133,10 +135,27 @@ def create_app():
         try:
             template_files = os.listdir(template_folder)
             print(f"  Template files: {template_files}")
+
+            # 檢查 index.html 具體路徑
+            index_path = os.path.join(template_folder, "index.html")
+            print(f"  Index.html path: {index_path}")
+            print(f"  Index.html exists: {os.path.exists(index_path)}")
+
         except Exception as e:
             print(f"  Error listing template files: {e}")
     else:
         print(f"✗ Template folder not found: {template_folder}")
+        # 嘗試其他可能的路徑
+        alternative_paths = [
+            os.path.join(base_dir, "templates"),
+            "app/templates",
+            "templates"
+        ]
+        for alt_path in alternative_paths:
+            if os.path.exists(alt_path):
+                template_folder = alt_path
+                print(f"✓ Found alternative template folder: {alt_path}")
+                break
 
     if os.path.exists(static_folder):
         print(f"✓ Static folder exists: {static_folder}")
@@ -147,9 +166,20 @@ def create_app():
             print(f"  Error listing static files: {e}")
     else:
         print(f"✗ Static folder not found: {static_folder}")
+        # 嘗試其他可能的路徑
+        alternative_static_paths = [
+            os.path.join(base_dir, "static"),
+            "app/static",
+            "static"
+        ]
+        for alt_path in alternative_static_paths:
+            if os.path.exists(alt_path):
+                static_folder = alt_path
+                print(f"✓ Found alternative static folder: {alt_path}")
+                break
 
     try:
-        # 創建 Flask app
+        # 🔥 創建 Flask app - 使用絕對路徑
         app = Flask(
             __name__,
             template_folder=template_folder,
@@ -157,9 +187,21 @@ def create_app():
             static_url_path='/static'
         )
         print(f"✓ Flask app created")
-        print(f"  Template folder: {app.template_folder}")
-        print(f"  Static folder: {app.static_folder}")
+        print(f"  Template folder (actual): {app.template_folder}")
+        print(f"  Static folder (actual): {app.static_folder}")
         print(f"  Static URL path: {app.static_url_path}")
+
+        # 🔥 驗證 Flask 能找到模板
+        try:
+            template_loader = app.jinja_env.loader
+            print(f"  Jinja2 loader: {template_loader}")
+
+            # 測試模板載入
+            template_source = template_loader.get_source(app.jinja_env, 'index.html')
+            print("✓ Flask can find index.html template")
+
+        except Exception as template_test_error:
+            print(f"❌ Flask cannot find template: {template_test_error}")
 
     except Exception as e:
         print(f"✗ Error creating Flask app: {e}")
@@ -196,78 +238,27 @@ def register_routes(app, data_status):
     def index():
         print("=== DEBUG: Rendering index page ===")
 
-        # 🔥 詳細診斷模板問題
-        template_path = os.path.join(app.template_folder, "index.html")
-        print(f"Template path: {template_path}")
-        print(f"Template exists: {os.path.exists(template_path)}")
-
-        # 檢查文件內容
         try:
-            with open(template_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                print(f"Template file size: {len(content)} characters")
-                print(f"First 100 chars: {repr(content[:100])}")
-
-                # 檢查可能的問題
-                if content.strip() == '':
-                    print("❌ Template file is empty!")
-                    return get_fallback_html()
-
-                if '\x00' in content:
-                    print("❌ Template contains null bytes!")
-                    return get_fallback_html()
-
-                # 檢查編碼問題
-                try:
-                    content.encode('utf-8')
-                    print("✓ Template encoding is valid UTF-8")
-                except UnicodeEncodeError as e:
-                    print(f"❌ Template encoding error: {e}")
-                    return get_fallback_html()
-
-        except Exception as e:
-            print(f"❌ Error reading template file: {e}")
-            print(f"Full traceback: {traceback.format_exc()}")
-            return get_fallback_html()
-
-        # 🔥 嘗試不同的渲染方法
-        print("Attempting to render template...")
-
-        # 方法 1: 直接 render_template
-        try:
-            print("Method 1: Direct render_template")
+            # 直接使用 render_template，應該現在能工作了
             result = render_template('index.html')
-            print("✓ Method 1 successful")
+            print("✓ Template rendered successfully using render_template")
             return result
+
         except Exception as e:
-            print(f"❌ Method 1 failed: {e}")
+            print(f"❌ render_template failed: {e}")
             print(f"Full traceback: {traceback.format_exc()}")
 
-        # 方法 2: 使用 app_context
-        try:
-            print("Method 2: With app_context")
-            with app.app_context():
-                result = render_template('index.html')
-                print("✓ Method 2 successful")
-                return result
-        except Exception as e:
-            print(f"❌ Method 2 failed: {e}")
-            print(f"Full traceback: {traceback.format_exc()}")
-
-        # 方法 3: 手動讀取文件
-        try:
-            print("Method 3: Manual file read")
-            with open(template_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            print("✓ Method 3 successful - returning raw HTML")
-            return content
-        except Exception as e:
-            print(f"❌ Method 3 failed: {e}")
-            print(f"Full traceback: {traceback.format_exc()}")
-
-        # 所有方法都失敗，返回 fallback
-        print("❌ All rendering methods failed, using fallback")
-        return get_fallback_html()
+            # 回退到手動讀取
+            print("Using manual file read as fallback...")
+            try:
+                template_path = os.path.join(app.template_folder, "index.html")
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                print("✓ Manual file read successful")
+                return content
+            except Exception as fallback_error:
+                print(f"❌ Manual fallback also failed: {fallback_error}")
+                return get_fallback_html()
 
     @app.route("/healthz")
     def healthz():
@@ -291,6 +282,14 @@ def register_routes(app, data_status):
                 "static_url_path": app.static_url_path
             }
         }
+
+        # 測試模板系統
+        try:
+            template_loader = app.jinja_env.loader
+            template_source = template_loader.get_source(app.jinja_env, 'index.html')
+            info["template_test"] = "✓ Flask can find index.html"
+        except Exception as e:
+            info["template_test"] = f"❌ Flask cannot find template: {str(e)}"
 
         # 列出文件
         try:
@@ -321,37 +320,11 @@ def register_routes(app, data_status):
             path_name: os.path.exists(path) for path_name, path in info["file_paths"].items()
         }
 
-        # 🔥 詳細模板診斷
-        try:
-            template_path = os.path.join(app.template_folder, "index.html")
-            with open(template_path, 'r', encoding='utf-8') as f:
-                template_content = f.read()
-
-            info["template_diagnostic"] = {
-                "size": len(template_content),
-                "is_empty": template_content.strip() == '',
-                "has_null_bytes": '\x00' in template_content,
-                "first_100_chars": repr(template_content[:100]),
-                "last_100_chars": repr(template_content[-100:]),
-                "line_count": len(template_content.split('\n')),
-                "encoding_test": "OK"
-            }
-
-            # 測試編碼
-            try:
-                template_content.encode('utf-8')
-                info["template_diagnostic"]["encoding_test"] = "UTF-8 OK"
-            except UnicodeEncodeError as e:
-                info["template_diagnostic"]["encoding_test"] = f"Encoding Error: {str(e)}"
-
-        except Exception as e:
-            info["template_diagnostic"] = {"error": str(e)}
-
         return f"""
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Detailed Debug Info</title>
+            <title>Fixed Template Debug Info</title>
             <style>
                 body {{ font-family: monospace; margin: 20px; }}
                 pre {{ background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto; }}
@@ -363,9 +336,12 @@ def register_routes(app, data_status):
             </style>
         </head>
         <body>
-            <h1>🔍 Detailed Debug Information</h1>
+            <h1>🔧 Fixed Template Path Debug</h1>
             <div class="section">
-                <h2>Template Diagnostic Results</h2>
+                <h2>Template System Test</h2>
+                <div class="success" style="margin: 10px 0;">
+                    <strong>Status:</strong> {info.get('template_test', 'Unknown')}
+                </div>
                 <pre>{json.dumps(info, indent=2, ensure_ascii=False)}</pre>
             </div>
             <div class="section">
@@ -414,8 +390,8 @@ def get_fallback_html():
         }
         h1 { color: #333; margin-bottom: 1rem; }
         .status { 
-            background: #ffe6e6; padding: 1rem; border-radius: 8px;
-            margin: 1rem 0; border-left: 4px solid #ff4444;
+            background: #e6ffe6; padding: 1rem; border-radius: 8px;
+            margin: 1rem 0; border-left: 4px solid #44ff44;
         }
         .links a { 
             display: inline-block; margin: 0.5rem; padding: 0.5rem 1rem;
@@ -429,12 +405,12 @@ def get_fallback_html():
     <div class="container">
         <h1>🏥 Medical Detection APP</h1>
         <div class="status">
-            <h3>⚠️ 模板診斷模式</h3>
-            <p>正在詳細檢查模板文件問題</p>
-            <p>使用備用頁面顯示</p>
+            <h3>✅ 模板路徑已修正</h3>
+            <p>使用絕對路徑配置 Flask 模板</p>
+            <p>如果看到這個頁面，說明 fallback 正在工作</p>
         </div>
         <div class="links">
-            <a href="/debug">🔍 查看詳細診斷結果</a>
+            <a href="/debug">🔧 查看修正後的診斷</a>
             <a href="/api/status">📊 API 狀態</a>
         </div>
     </div>
