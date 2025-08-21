@@ -24,13 +24,11 @@ from app.utils.shape_color_utils import (
 
 # 套用字體（用 FontProperties）
 
-from matplotlib.font_manager import FontProperties
+# from matplotlib.font_manager import FontProperties
 
-zh_font = FontProperties(fname="/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
+# zh_font = FontProperties(fname="/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
 
-from pillow_heif import register_heif_opener
 
-register_heif_opener()
 
 
 ####
