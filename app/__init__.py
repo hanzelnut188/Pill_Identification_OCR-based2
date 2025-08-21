@@ -1,6 +1,6 @@
 import os
 import traceback
-
+from app.utils.data_loader import generate_color_shape_dicts
 print("=== DEBUG: Starting app/__init__.py ===")
 print(f"Current working directory: {os.getcwd()}")
 
@@ -122,6 +122,10 @@ def create_app():
         print(f"✓ Successfully loaded Excel with {len(df)} rows")
         data_status = f"Data loaded: {len(df)} rows"
         app.df = df
+        # ✅ 動態生成分類字典
+        color_dict, shape_dict, invalid_colors = generate_color_shape_dicts(df)
+        app.color_dict = color_dict
+        app.shape_dict = shape_dict
     except Exception as e:
         print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
