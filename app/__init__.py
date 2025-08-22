@@ -1,6 +1,14 @@
 import os
+
+# ✅ 在任何 heavy import 之前限制執行緒（放第一行！）
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+
 from app.route import register_routes
 from app.utils.data_loader import generate_color_shape_dicts
+from app.utils.logging_utils import log_mem
 
 print("=== DEBUG: Starting app/__init__.py ===")
 print(f"Current working directory: {os.getcwd()}")
@@ -13,27 +21,31 @@ try:
     # 預先載入 torch (最重的)
     print("🟡 [STARTUP] 載入 torch...")
     import torch
-    print("🟢 [STARTUP] torch 載入完成")
 
+    print("🟢 [STARTUP] torch 載入完成")
+    log_mem("after torch import")
     # 預先載入 ultralytics (YOLO)
     print("🟡 [STARTUP] 載入 ultralytics...")
     import ultralytics
-    print("🟢 [STARTUP] ultralytics 載入完成")
 
+    print("🟢 [STARTUP] ultralytics 載入完成")
+    log_mem("after ultralytics import")
     # 預先載入 process_image
     print("🟡 [STARTUP] 載入 process_image...")
     from app.utils.pill_detection import process_image
+
     print("🟢 [STARTUP] process_image 載入完成")
+    log_mem("after process_image import")
 
     print("🟢 [STARTUP] 所有深度學習庫載入完成!")
 
 except Exception as e:
     print(f"🔴 [STARTUP] 載入庫時發生錯誤: {e}")
     import traceback
+
     traceback.print_exc()
 
 ######################
-
 
 
 try:
@@ -124,7 +136,7 @@ def create_app():
         print(f"  Template folder (actual): {app.template_folder}")
         print(f"  Static folder (actual): {app.static_folder}")
         print(f"  Static URL path: {app.static_url_path}")
-
+        log_mem("after Flask app created")
         # 🔥 驗證 Flask 能找到模板
         try:
             template_loader = app.jinja_env.loader
@@ -158,16 +170,33 @@ def create_app():
         color_dict, shape_dict, invalid_colors = generate_color_shape_dicts(df)
         app.color_dict = color_dict
         app.shape_dict = shape_dict
-        print("color: ", color_dict)
-        print("shape: ", shape_dict)
+
     except Exception as e:
         print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
         app.df = None
-
+    log_mem("after data load")
     # 註冊路由
 
     register_routes(app, data_status)
     print("=== DEBUG: create_app() completed successfully ===")
-    return app
+    log_mem("after register_routes")
+    # app/__init__.py（create_app() 的最後）
+    from app.utils.pill_detection import get_det_model
+    print("🟡 [WARMUP] 載入 YOLO 權重…")
+    det =get_det_model()
+    print("🟢 [WARMUP] YOLO 準備完成")
+    log_mem("after get_det_model")
+    # 可選暖機一次（小張 dummy 圖）
+    try:
+        import numpy as np, cv2
+        dummy = np.zeros((320, 320, 3), dtype=np.uint8)
+        print("🟡 [WARMUP] 做一次 dummy 推論…")
+        det.predict(source=dummy, imgsz=320, conf=0.25, iou=0.7, device="cpu", verbose=False)
+        print("🟢 [WARMUP] 推論暖機完成")
+        log_mem("after warmup predict")
+    except Exception as e:
+        print(f"⚠️ [WARMUP] dummy 推論失敗（可忽略）：{e}")
 
+    print("=== DEBUG: create_app() completed successfully ===")
+    return app

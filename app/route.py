@@ -187,11 +187,10 @@
 import os
 import pandas as pd
 from flask import request, jsonify, render_template
-
-from PIL import Image, UnidentifiedImageError
-from io import BytesIO
 import base64
-import tempfile
+import time
+from app.utils.logging_utils import log_mem
+from app.utils.pill_detection import process_image  # ✅ 頂部 import
 import shutil
 
 # 假設這些是從其他模組匯入的變數和函數
@@ -374,6 +373,8 @@ def register_routes(app, data_status):
     @app.route("/upload", methods=["POST"])
     def upload_image():
         print("🟡 [UPLOAD] 收到 POST")
+        log_mem("upload:start")
+        t0 = time.perf_counter()
         if not request.is_json:
             print("🔴 [UPLOAD] Content-Type 不是 JSON")
             # 仍回 200，但 ok=False + 空結果骨架
@@ -413,8 +414,12 @@ def register_routes(app, data_status):
             # 這裡只做 try/except，確保一定回骨架
             try:
                 # 延遲匯入推論流程
-                from app.utils.pill_detection import process_image
+                log_mem("upload:before process_image")
+                t1 = time.perf_counter()
                 result = process_image(temp_path) or {}
+                t2 = time.perf_counter()
+                print(f"🟢 [UPLOAD] process_image 完成，耗時 {t2 - t1:.2f}s")
+                log_mem("upload:after process_image")
                 # 🔰 統一補齊骨架 + 限縮長度
                 safe = {
                     "文字辨識": result.get("文字辨識") or ["None"],
@@ -423,9 +428,13 @@ def register_routes(app, data_status):
                     "cropped_image": result.get("cropped_image") or ""
                 }
                 print(f"🟢 [UPLOAD] 推論成功：文字={safe['文字辨識']} 顏色={safe['顏色']} 外型={safe['外型']}")
+                resp = {"ok": True, "result": result}
+                print(f"🟢 [UPLOAD] 完成，總耗時 {t2 - t0:.2f}s")
+                log_mem("upload:end")
                 return jsonify({"ok": True, "result": safe}), 200
             except Exception as e:
-                import traceback; traceback.print_exc()
+                import traceback;
+                traceback.print_exc()
                 print(f"🔴 [UPLOAD] process_image 失敗：{e}")
                 return jsonify({
                     "ok": False,
