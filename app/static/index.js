@@ -34,38 +34,36 @@ uploadInput.addEventListener('change', async (event) => {
         reader.readAsDataURL(file);
     }
 });
-
-
 async function Detection(imageData) {
     try {
-        const resp = await fetch('/upload', {
+        const res = await fetch('/upload', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ image: imageData }),
+            body: JSON.stringify({ image: imageData })
         });
 
-        // 先保險轉純文字再 parse，方便遇到 HTML error 時顯示
-        const raw = await resp.text();
-        let data;
-        try { data = JSON.parse(raw); }
-        catch (e) {
-            console.error('[UPLOAD] 非 JSON 回應：', raw);
-            alert('🚨 伺服器回傳非 JSON，請稍後再試。');
+        const ctype = res.headers.get('content-type') || '';
+        if (!res.ok || !ctype.includes('application/json')) {
+            const text = await res.text();           // 保留伺服器錯誤內容做除錯
+            console.warn('[UPLOAD] 非 JSON 回應：', text);
+            alert('🚨 伺服器錯誤，請稍後再試。');
             return;
         }
 
-        console.log('[UPLOAD] 回傳：', data);
+        const data = await res.json();
+        if (!data.ok) {                            // 後端已統一回 { ok:false, error, result:{} }
+            alert('辨識失敗：' + (data.error || '未知錯誤'));
+            return;
+        }
 
+        const result = data.result || {};
+        // 顯示裁切圖（可選）
         const container = document.getElementById('photo-container');
         container.innerHTML = '';
-
-        const r = data.result || { 文字辨識:[], 顏色:[], 外型:'', cropped_image:'' };
-
-        // 先顯示裁切圖（就算 ok:false，有圖也顯示）
-        if (r.cropped_image) {
+        if (result.cropped_image) {
             const img = new Image();
-            img.src = r.cropped_image;
-            img.alt = "裁切後圖片";
+            img.src = result.cropped_image;
+            img.alt = '裁切後圖片';
             img.style.maxWidth = '60%';
             img.style.maxHeight = '250px';
             img.style.objectFit = 'contain';
@@ -76,20 +74,13 @@ async function Detection(imageData) {
             container.appendChild(img);
         }
 
-        if (data.ok) {
-            // ✅ 正常回填
-            document.getElementById('recognizedText').value = (r['文字辨識'] || []).join(', ');
-            document.getElementById('color1').value = (r['顏色'] || [])[0] || '';
-            document.getElementById('color2').value = (r['顏色'] || [])[1] || '';
-            document.getElementById('shape').value  = r['外型'] || '';
-        } else {
-            // ❌ 失敗也允許使用者手動修正
-            const msg = data.error || '辨識失敗，請手動調整後再按「確認藥物比對」。';
-            alert('⚠️ ' + msg);
-            // 保持欄位空白/預設，讓使用者手填
-        }
+        // 將辨識結果填回下拉
+        const colors = result['顏色'] || [];
+        document.getElementById('recognizedText').value = (result['文字辨識'] || []).join(', ');
+        document.getElementById('color1').value = colors[0] || '';
+        document.getElementById('color2').value = colors[1] || '';
+        document.getElementById('shape').value   = result['外型'] || '';
     } catch (err) {
-        console.error('[UPLOAD] 例外：', err);
         alert('🚨 圖片辨識錯誤：' + err.message);
     }
 }
