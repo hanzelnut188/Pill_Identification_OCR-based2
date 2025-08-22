@@ -38,52 +38,62 @@ uploadInput.addEventListener('change', async (event) => {
 
 async function Detection(imageData) {
     try {
-        const response = await fetch('/upload', {
+        const resp = await fetch('/upload', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({image: imageData})
+            body: JSON.stringify({ image: imageData }),
         });
 
-        const parsedData = await response.json();
-        const result = parsedData.result;
+        // 先保險轉純文字再 parse，方便遇到 HTML error 時顯示
+        const raw = await resp.text();
+        let data;
+        try { data = JSON.parse(raw); }
+        catch (e) {
+            console.error('[UPLOAD] 非 JSON 回應：', raw);
+            alert('🚨 伺服器回傳非 JSON，請稍後再試。');
+            return;
+        }
+
+        console.log('[UPLOAD] 回傳：', data);
 
         const container = document.getElementById('photo-container');
-        container.innerHTML = ''; // 清空
-        if (result?.cropped_image) {
+        container.innerHTML = '';
 
+        const r = data.result || { 文字辨識:[], 顏色:[], 外型:'', cropped_image:'' };
 
-            const croppedImg = new Image();
-            croppedImg.src = result.cropped_image;
-            croppedImg.alt = "裁切後圖片";
-
-            // === 改小圖片尺寸 ===
-            croppedImg.style.maxWidth = '60%';     // 寬度限制 60% 容器
-            croppedImg.style.maxHeight = '250px';  // 限制最大高度
-            croppedImg.style.objectFit = 'contain'; // 保持比例
-            croppedImg.style.border = '2px solid #888';
-            croppedImg.style.borderRadius = '10px';
-            croppedImg.style.margin = '0 auto 10px auto';
-            croppedImg.style.display = 'block';
-
-            container.appendChild(croppedImg);
+        // 先顯示裁切圖（就算 ok:false，有圖也顯示）
+        if (r.cropped_image) {
+            const img = new Image();
+            img.src = r.cropped_image;
+            img.alt = "裁切後圖片";
+            img.style.maxWidth = '60%';
+            img.style.maxHeight = '250px';
+            img.style.objectFit = 'contain';
+            img.style.border = '2px solid #888';
+            img.style.borderRadius = '10px';
+            img.style.margin = '0 auto 10px';
+            img.style.display = 'block';
+            container.appendChild(img);
         }
 
-
-        // ✅ 填入辨識結果
-        if (result) {
-            textField.value = result["文字辨識"]?.join(', ') || '';
-            const colors = result["顏色"] || [];
-            color1Select.value = colors[0] || '';
-            color2Select.value = colors[1] || '';
-            shapeSelect.value = result["外型"] || '';
+        if (data.ok) {
+            // ✅ 正常回填
+            document.getElementById('recognizedText').value = (r['文字辨識'] || []).join(', ');
+            document.getElementById('color1').value = (r['顏色'] || [])[0] || '';
+            document.getElementById('color2').value = (r['顏色'] || [])[1] || '';
+            document.getElementById('shape').value  = r['外型'] || '';
         } else {
-            alert('辨識失敗，未找到藥品資訊。');
+            // ❌ 失敗也允許使用者手動修正
+            const msg = data.error || '辨識失敗，請手動調整後再按「確認藥物比對」。';
+            alert('⚠️ ' + msg);
+            // 保持欄位空白/預設，讓使用者手填
         }
-
-    } catch (error) {
-        alert('🚨 圖片辨識錯誤：' + error.message);
+    } catch (err) {
+        console.error('[UPLOAD] 例外：', err);
+        alert('🚨 圖片辨識錯誤：' + err.message);
     }
 }
+
 
 function showDrugDetail(drug) {
     // 更新左側圖片
