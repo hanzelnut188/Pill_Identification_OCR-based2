@@ -5,6 +5,37 @@ from app.utils.data_loader import generate_color_shape_dicts
 print("=== DEBUG: Starting app/__init__.py ===")
 print(f"Current working directory: {os.getcwd()}")
 
+######################
+# ============= 預先載入所有重型庫 =============
+print("🟡 [STARTUP] 開始載入深度學習庫...")
+
+try:
+    # 預先載入 torch (最重的)
+    print("🟡 [STARTUP] 載入 torch...")
+    import torch
+    print("🟢 [STARTUP] torch 載入完成")
+
+    # 預先載入 ultralytics (YOLO)
+    print("🟡 [STARTUP] 載入 ultralytics...")
+    import ultralytics
+    print("🟢 [STARTUP] ultralytics 載入完成")
+
+    # 預先載入 process_image
+    print("🟡 [STARTUP] 載入 process_image...")
+    from app.utils.pill_detection import process_image
+    print("🟢 [STARTUP] process_image 載入完成")
+
+    print("🟢 [STARTUP] 所有深度學習庫載入完成!")
+
+except Exception as e:
+    print(f"🔴 [STARTUP] 載入庫時發生錯誤: {e}")
+    import traceback
+    traceback.print_exc()
+
+######################
+
+
+
 try:
     from flask import Flask, jsonify, render_template
 
