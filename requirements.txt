@@ -8,7 +8,7 @@ numpy==1.24.4
 #can be deleted
 pandas==2.0.3
 openpyxl                 # 讀 Excel 用
-
+scikit-learn
 # --- OCR / ONNX ---
 openocr-python
 onnxruntime
