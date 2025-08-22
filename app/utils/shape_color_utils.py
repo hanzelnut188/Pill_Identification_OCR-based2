@@ -1,8 +1,4 @@
 import cv2
-from sklearn.cluster import KMeans
-import numpy as np
-
-
 def rotate_image_by_angle(image, angle):
     """
     將圖片依指定角度旋轉。
