@@ -1,9 +1,6 @@
 import cv2
-from matplotlib.font_manager import FontProperties
 from sklearn.cluster import KMeans
 import numpy as np
-
-zh_font = FontProperties(fname="C:/Windows/Fonts/msjh.ttc")
 
 
 def rotate_image_by_angle(image, angle):
@@ -31,13 +28,11 @@ def enhance_contrast(img, clip_limit, alpha, beta):
     return cv2.addWeighted(enhance_img, alpha, blurred, beta, 0)
 
 
-def extract_dominant_colors_by_ratio(cropped_img, k=6, min_ratio=0.4, visualize=True):
+def extract_dominant_colors_by_ratio(cropped_img, k=4, min_ratio=0.38):
     import colorsys
+    import numpy as np
+    import cv2
     from collections import Counter
-    import matplotlib.pyplot as plt
-
-    def rgb2hex(rgb):
-        return "#{:02x}{:02x}{:02x}".format(int(rgb[0]), int(rgb[1]), int(rgb[2]))
 
     def rgb_to_color_group(rgb):
         r, g, b = rgb / 255.0
@@ -69,50 +64,60 @@ def extract_dominant_colors_by_ratio(cropped_img, k=6, min_ratio=0.4, visualize=
             return "棕色"
         return "未知"
 
-    # 相近色映射表（不互為雙向）
     similar_color_map = {
         "皮膚色": "黃色",
         "橘色": "紅色",
         "粉紅色": "紅色",
         "透明": "白色",
-        "棕色": "黑色"
+        "棕色": "黑色",
     }
 
+    # ↓ 小圖＋取樣，減少計算量
     img_rgb = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2RGB)
-    resized_img = cv2.resize(img_rgb, (64, 64), interpolation=cv2.INTER_AREA)
-    img_list = resized_img.reshape((-1, 3))
-    img_list = img_list[np.sum(img_list, axis=1) > 30]
+    resized = cv2.resize(img_rgb, (48, 48), interpolation=cv2.INTER_AREA)
+    pixels = resized.reshape(-1, 3)
+    # 去掉非常暗的像素（背景/陰影）
+    pixels = pixels[np.sum(pixels, axis=1) > 30]
 
-    clt = KMeans(n_clusters=k, random_state=42)
-    labels = clt.fit_predict(img_list)
-    label_counts = Counter(labels)
-    total = sum(label_counts.values())
-    center_colors = clt.cluster_centers_
+    # 再次隨機取樣最多 1500 個點，足夠穩定
+    if len(pixels) > 1500:
+        idx = np.random.choice(len(pixels), 1500, replace=False)
+        pixels = pixels[idx]
 
-    # 語意色統計
+    # OpenCV KMeans（float32）
+    Z = np.float32(pixels)
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
+    attempts = 1
+    compactness, labels, centers = cv2.kmeans(
+        Z, k, None, criteria, attempts, cv2.KMEANS_PP_CENTERS
+    )
+    labels = labels.flatten()
+    centers = centers.astype(np.float32)
+
+    # 統計每群占比
+    counts = np.bincount(labels, minlength=k).astype(np.float32)
+    total = counts.sum() if counts.sum() > 0 else 1.0
+
+    # 對每群做語意色映射
     semantic_counter = Counter()
-    for label, count in label_counts.items():
-        color = rgb_to_color_group(center_colors[label])
-        if color not in ["未知", "透明"]:
-            semantic_counter[color] += count
+    for i, cnt in enumerate(counts):
+        color = rgb_to_color_group(centers[i])
+        if color not in ("未知", "透明"):
+            semantic_counter[color] += cnt
 
-    # 篩選主色（佔比 ≥ min_ratio，最多2種）
-    filtered = [
-        (color, count / total) for color, count in semantic_counter.items()
-        if count / total >= min_ratio
-    ]
-    filtered = sorted(filtered, key=lambda x: -x[1])[:2]
-    dominant_colors = [color for color, _ in filtered]
+    # 取主色（最多 2 種、占比 >= min_ratio）
+    items = [(c, v / total) for c, v in semantic_counter.items()]
+    items.sort(key=lambda x: -x[1])
+    dominant = [c for c, r in items if r >= min_ratio][:2]
 
-    # 擴充相近色（不能與主色重複）
-    extended_colors = dominant_colors.copy()
-    for color in dominant_colors:
-        if color in similar_color_map:
-            similar = similar_color_map[color]
-            if similar not in extended_colors:
-                extended_colors.append(similar)
+    # 擴充相近色（不重複）
+    extended = dominant.copy()
+    for c in dominant:
+        sim = similar_color_map.get(c)
+        if sim and sim not in extended:
+            extended.append(sim)
 
-    return extended_colors
+    return extended
 
 
 # ===外型辨識函式 ===
@@ -142,8 +147,6 @@ def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None)
             area_ratio = area / img_area
             # print(f"📐 輪廓面積：{area:.1f}，圖片面積：{img_area:.1f}，佔比：{area_ratio:.2%}")#註解SSS
             shape = detect_shape_three_classes(main_contour, img_debug=output)
-
-
 
         if expected_shape:
             result = "✅" if shape == expected_shape else "❌"
@@ -178,10 +181,6 @@ def enhance_for_blur(img):
 
 
 # === 3. 定義讀取 HEIC 的函式 ===
-
-
-def rgb2hex(rgb):
-    return "#{:02x}{:02x}{:02x}".format(int(rgb[0]), int(rgb[1]), int(rgb[2]))
 
 
 # === 形狀辨識相關 ===

@@ -1,27 +1,26 @@
-# 模型推論
-openocr-python
-
-onnxruntime
-
-numpy==1.24.4
-opencv-python==4.6.0.66
-opencv-contrib-python==4.6.0.66  # 若你有用到 SIFT/SURF 等擴充模組就加這行
+# --- Core web ---
 Flask
+flask-cors
 gunicorn
 
+# --- Numerics / IO ---
+numpy==1.24.4
+#can be deleted
+pandas==2.0.3
+openpyxl                 # 讀 Excel 用
+
+# --- OCR / ONNX ---
+openocr-python
+onnxruntime
+
+# --- Imaging ---
+opencv-python==4.6.0.66
+opencv-contrib-python==4.6.0.66  # 若你有用到 SIFT/SURF 等擴充模組就加這行
 pillow
 pillow-heif              # ✅ 可讀 HEIC
 
 openpyxl
-# 圖像處理
-rembg
-matplotlib
-scikit-learn
-pandas
-flask-cors
 
 # YOLOv8 套件
 ultralytics
 
-#can be deleted
-pandas==2.0.3

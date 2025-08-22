@@ -1,7 +1,4 @@
-
 def read_image_safely(img_path):
-
-
     from pathlib import Path
     from PIL import Image
     import cv2
