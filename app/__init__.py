@@ -13,41 +13,6 @@ from app.utils.logging_utils import log_mem
 print("=== DEBUG: Starting app/__init__.py ===")
 print(f"Current working directory: {os.getcwd()}")
 
-######################
-# ============= 預先載入所有重型庫 =============
-print("🟡 [STARTUP] 開始載入深度學習庫...")
-
-try:
-    # 預先載入 torch (最重的)
-    print("🟡 [STARTUP] 載入 torch...")
-    import torch
-
-    print("🟢 [STARTUP] torch 載入完成")
-    log_mem("after torch import")
-    # 預先載入 ultralytics (YOLO)
-    print("🟡 [STARTUP] 載入 ultralytics...")
-    import ultralytics
-
-    print("🟢 [STARTUP] ultralytics 載入完成")
-    log_mem("after ultralytics import")
-    # 預先載入 process_image
-    print("🟡 [STARTUP] 載入 process_image...")
-    from app.utils.pill_detection import process_image
-
-    print("🟢 [STARTUP] process_image 載入完成")
-    log_mem("after process_image import")
-
-    print("🟢 [STARTUP] 所有深度學習庫載入完成!")
-
-except Exception as e:
-    print(f"🔴 [STARTUP] 載入庫時發生錯誤: {e}")
-    import traceback
-
-    traceback.print_exc()
-
-######################
-
-
 try:
     from flask import Flask, jsonify, render_template
 
@@ -181,22 +146,6 @@ def create_app():
     register_routes(app, data_status)
     print("=== DEBUG: create_app() completed successfully ===")
     log_mem("after register_routes")
-    # app/__init__.py（create_app() 的最後）
-    from app.utils.pill_detection import get_det_model
-    print("🟡 [WARMUP] 載入 YOLO 權重…")
-    det =get_det_model()
-    print("🟢 [WARMUP] YOLO 準備完成")
-    log_mem("after get_det_model")
-    # 可選暖機一次（小張 dummy 圖）
-    try:
-        import numpy as np, cv2
-        dummy = np.zeros((320, 320, 3), dtype=np.uint8)
-        print("🟡 [WARMUP] 做一次 dummy 推論…")
-        det.predict(source=dummy, imgsz=320, conf=0.25, iou=0.7, device="cpu", verbose=False)
-        print("🟢 [WARMUP] 推論暖機完成")
-        log_mem("after warmup predict")
-    except Exception as e:
-        print(f"⚠️ [WARMUP] dummy 推論失敗（可忽略）：{e}")
 
     print("=== DEBUG: create_app() completed successfully ===")
     return app

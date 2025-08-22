@@ -18,6 +18,7 @@ from app.utils.shape_color_utils import (
     extract_dominant_colors_by_ratio,
     detect_shape_from_image
 )
+from app.utils.logging_utils import log_mem
 
 # ====== 輕量化設定 ======
 # Render 的 CPU 只有 1 核，避免 PyTorch/NumPy 開太多執行緒
@@ -115,8 +116,9 @@ def process_image(img_path: str):
     YOLO → 裁切 → 顏色/外型 → 多版本 OCR → 回傳
     """
     print(f"[PROC] start process_image: {img_path}")
+    log_mem("infer:start")
     det_model = get_det_model()
-
+    log_mem("infer:after_get_model")
     # === 讀取圖片 ===
     input_img = read_image_safely(img_path)
     if input_img is None:
@@ -136,6 +138,7 @@ def process_image(img_path: str):
         res_lo = det_model.predict(
             source=input_img, imgsz=640, conf=0.10, iou=0.7, device=DEVICE, verbose=False
         )[0]
+        log_mem("infer:after_predict")
         boxes_lo = res_lo.boxes
         if boxes_lo is not None and boxes_lo.xyxy.shape[0] > 0:
             cropped = _pick_crop_from_boxes(input_img, boxes_lo)
