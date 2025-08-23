@@ -1,4 +1,6 @@
 import cv2
+
+
 def rotate_image_by_angle(image, angle):
     """
     將圖片依指定角度旋轉。
@@ -151,7 +153,7 @@ def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None)
         return shape, None
 
     except Exception as e:
-        # print(f"❗ 發生錯誤：{e}")#註解SSS
+        print(f"❗ 發生錯誤：{e}")  # 註解SSS
         return "錯誤", None
 
 
@@ -230,7 +232,7 @@ def detect_shape_three_classes(contour):
 
             # print(f"📏 shape ratio: {ratio:.2f} => 判斷為 {shape}")
 
-    except:
-        pass
+    except  Exception as e:
+        print(f"❗ detect_shape_three_classes 發生錯誤：{e}")
 
     return shape
