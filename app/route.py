@@ -1,4 +1,8 @@
+import imghdr
+import io
 import os
+from io import BytesIO
+
 import pandas as pd
 from flask import request, jsonify, render_template
 import base64
@@ -7,7 +11,10 @@ from app.utils.logging_utils import log_mem
 import shutil
 from app.utils.pill_detection import process_image
 import tempfile
+from PIL import Image, UnidentifiedImageError
+from pillow_heif import register_heif_opener
 
+register_heif_opener()  # ✅ 全域註冊 HEIC 支援
 # 假設這些是從其他模組匯入的變數和函數
 # 你需要根據實際情況調整匯入
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -184,107 +191,53 @@ def register_routes(app, data_status):
         </html>
         """
 
-    # route.py 或 __init__.py 內的 /upload
     @app.route("/upload", methods=["POST"])
     def upload_image():
         print("🟡 [UPLOAD] 收到 POST")
-        log_mem("upload:start")
-        t0 = time.perf_counter()
 
-        if not request.is_json:
-            print("🔴 [UPLOAD] Content-Type 不是 JSON")
-            return jsonify({
-                "ok": False,
-                "error": "Invalid content type. JSON expected.",
-                "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
-            }), 200
-
-        data = request.get_json(silent=True) or {}
-        image_data = data.get("image")
-        print(f"🟡 [UPLOAD] JSON 解析完成，有 image 欄位: {bool(image_data)}")
-
-        if not image_data or "," not in image_data:
-            print("🔴 [UPLOAD] image 欄位缺失或不是 dataURL")
-            return jsonify({
-                "ok": False,
-                "error": "Invalid or missing image data",
-                "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
-            }), 200
-
-        # 允許載入截斷影像、註冊 HEIC 解碼（若可用）
         try:
-            from PIL import ImageFile
-            ImageFile.LOAD_TRUNCATED_IMAGES = True
+            data = request.get_json()
+            if not data or "image" not in data:
+                return jsonify({"ok": False, "error": "缺少 image 欄位"}), 400
+
+            b64_data = data["image"]
+            print(f"🟡 [UPLOAD] JSON 解析完成，有 image 欄位: {bool(b64_data)}")
+
+            # 嘗試剝除 base64 header
+            if b64_data.startswith("data:"):
+                b64_data = b64_data.split(",")[1]
+
+            image_bytes = base64.b64decode(b64_data)
+            print(f"🟡 [UPLOAD] base64 解碼成功，長度: {len(image_bytes)} bytes")
+
+            # 嘗試用 Pillow 開啟圖片
+            image = None
             try:
-                from pillow_heif import register_heif_opener
-                register_heif_opener()
-            except Exception:
-                pass
-        except Exception:
-            pass
+                image = Image.open(io.BytesIO(image_bytes))
+                image.verify()  # 驗證格式合法
+                image = Image.open(io.BytesIO(image_bytes)).convert("RGB")  # 再打開一次取得像素
+                print("🟢 [UPLOAD] Pillow 成功辨識圖片格式")
+            except Exception as e:
+                print(f"❌ [UPLOAD] Pillow 無法辨識圖片格式: {e}")
+                # 嘗試用 imghdr 判斷副檔名
+                fmt = imghdr.what(None, image_bytes)
+                print(f"❌ [UPLOAD] imghdr 檢測結果: {fmt}")
+                return jsonify({"ok": False, "error": "不支援的圖片格式"}), 400
 
-        temp_path = None
-        try:
-            # 1) 解析 dataURL
-            try:
-                header, b64data = image_data.split(",", 1)
-            except ValueError:
-                print("🔴 [UPLOAD] dataURL 格式不正確")
-                return jsonify({
-                    "ok": False,
-                    "error": "Invalid data URL",
-                    "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
-                }), 200
+            # 儲存成臨時檔案
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+            image.save(temp_file.name)
+            temp_path = temp_file.name
+            temp_file.close()
+            print(f"🟢 [UPLOAD] 寫入臨時檔 {temp_path} ({os.path.getsize(temp_path)} bytes)")
 
-            mime = header.split(";")[0].split(":")[-1].lower()  # e.g. image/heic
-            ext_map = {
-                "image/jpeg": ".jpg",
-                "image/jpg": ".jpg",
-                "image/png": ".png",
-                "image/webp": ".webp",
-                "image/heic": ".heic",
-                "image/heif": ".heif",
-            }
-            ext = ext_map.get(mime, ".jpg")
-            print(f"🟡 [UPLOAD] dataURL mime={mime}, ext={ext}, b64len={len(b64data)}")
-
-            # 2) 安全解 base64（支援 URL-safe + 自動補齊 padding）
-
-            try:
-                raw = base64.b64decode(b64data, validate=True)
-            except Exception:
-                raw = base64.urlsafe_b64decode(b64data + "=" * (-len(b64data) % 4))
-
-            # 3) 寫入臨時檔（用正確副檔名）
-            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                tmp.write(raw)
-                tmp.flush()
-                os.fsync(tmp.fileno())
-                temp_path = tmp.name
-            print(f"🟢 [UPLOAD] 寫入臨時檔 {temp_path} ({len(raw)} bytes)")
-
-            # 4) 進入推論
-            log_mem("upload:before process_image")
-            t1 = time.perf_counter()
+            # 呼叫核心辨識邏輯
+            from app.utils.pill_detection import process_image
             result = process_image(temp_path) or {}
-            t2 = time.perf_counter()
-            print(f"🟢 [UPLOAD] process_image 完成，耗時 {t2 - t1:.2f}s")
-            log_mem("upload:after process_image")
-
-            # 統一回傳骨架
-            safe = {
-                "文字辨識": result.get("文字辨識") or ["None"],
-                "顏色": (result.get("顏色") or [])[:2],
-                "外型": result.get("外型") or "其他",
-                "cropped_image": result.get("cropped_image") or ""
-            }
-            print(f"🟢 [UPLOAD] 推論成功：文字={safe['文字辨識']} 顏色={safe['顏色']} 外型={safe['外型']}")
-            print(f"🟢 [UPLOAD] 完成，總耗時 {t2 - t0:.2f}s")
-            log_mem("upload:end")
-            return jsonify({"ok": True, "result": safe}), 200
+            return jsonify({"ok": True, "result": result}), 200
 
         except Exception as e:
-            import traceback;
+            import traceback
             traceback.print_exc()
             print(f"🔴 [UPLOAD] 失敗：{e}")
             return jsonify({
