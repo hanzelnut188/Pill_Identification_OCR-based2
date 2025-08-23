@@ -135,7 +135,7 @@ def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None)
 
             if contours_fallback:
                 main_contour = max(contours_fallback, key=cv2.contourArea)
-                shape = detect_shape_three_classes(main_contour, img_debug=output)
+                shape = detect_shape_three_classes(main_contour)
             else:
                 print("⚠️ 二次嘗試仍無輪廓，標記為其他")  # 註解SSS
         elif contours:
@@ -144,7 +144,7 @@ def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None)
             img_area = cropped_img.shape[0] * cropped_img.shape[1]
             area_ratio = area / img_area
             # print(f"📐 輪廓面積：{area:.1f}，圖片面積：{img_area:.1f}，佔比：{area_ratio:.2%}")#註解SSS
-            shape = detect_shape_three_classes(main_contour, img_debug=output)
+            shape = detect_shape_three_classes(main_contour)
 
         if expected_shape:
             result = "✅" if shape == expected_shape else "❌"
