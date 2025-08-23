@@ -388,12 +388,20 @@ def register_routes(app, data_status):
             except NameError:
                 return jsonify({"error": "OCR 比對功能未實作"}), 500
 
-            row = match_result.get("front", {}).get("row") or match_result.get("back", {}).get("row")
+            front_row = match_result.get("front", {}).get("row")
+            back_row = match_result.get("back", {}).get("row")
+
+            row = None
+            if isinstance(front_row, pd.Series) and not front_row.empty:
+                row = front_row
+            elif isinstance(back_row, pd.Series) and not back_row.empty:
+                row = back_row
 
             if isinstance(row, pd.Series):
                 row = row.to_dict()
 
-            if isinstance(row, dict):
+
+             if isinstance(row, dict):
                 # 尋找藥物圖片
                 picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
                 picture_base64 = ""
