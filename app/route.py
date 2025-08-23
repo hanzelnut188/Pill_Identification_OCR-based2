@@ -400,8 +400,7 @@ def register_routes(app, data_status):
             if isinstance(row, pd.Series):
                 row = row.to_dict()
 
-
-             if isinstance(row, dict):
+            if isinstance(row, dict):
                 # 尋找藥物圖片
                 picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
                 picture_base64 = ""
