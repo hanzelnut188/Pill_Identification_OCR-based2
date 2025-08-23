@@ -196,6 +196,7 @@ def register_routes(app, data_status):
         print("🟡 [UPLOAD] 收到 POST")
 
         try:
+            t0 = time.perf_counter()
             data = request.get_json()
             if not data or "image" not in data:
                 return jsonify({"ok": False, "error": "缺少 image 欄位"}), 400
@@ -234,6 +235,10 @@ def register_routes(app, data_status):
             # 呼叫核心辨識邏輯
             from app.utils.pill_detection import process_image
             result = process_image(temp_path) or {}
+            t2 = time.perf_counter()
+            print(
+                f"🟢 [UPLOAD] 推論成功：文字={result['文字辨識']}最佳版本={result['最佳版本']}信心分數={result['信心分數']} 顏色={result['顏色']} 外型={result['外型']}")
+            print(f"🟢 [UPLOAD] 完成，總耗時 {t2 - t0:.2f}s")
             return jsonify({"ok": True, "result": result}), 200
 
         except Exception as e:
@@ -253,6 +258,88 @@ def register_routes(app, data_status):
                     os.remove(temp_path)
             except Exception as e:
                 print(f"⚠️ [UPLOAD] 臨時檔清理失敗：{e}")
+
+    # route.py 或 __init__.py 內的 /upload
+    # @app.route("/upload", methods=["POST"])
+    # def upload_image():
+    #     print("🟡 [UPLOAD] 收到 POST")
+    #     log_mem("upload:start")
+    #     t0 = time.perf_counter()
+    #     temp_file_path = None
+    #     if not request.is_json:
+    #         print("🔴 [UPLOAD] Content-Type 不是 JSON")
+    #         return jsonify({
+    #             "ok": False,
+    #             "error": "Invalid content type. JSON expected.",
+    #             "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
+    #         }), 200
+    #
+    #     data = request.get_json(silent=True) or {}
+    #     image_data = data.get("image")
+    #     print(f"🟡 [UPLOAD] JSON 解析完成，有 image 欄位: {bool(image_data)}")
+    #
+    #     if not image_data or "," not in image_data:
+    #         print("🔴 [UPLOAD] image 欄位缺失或不是 dataURL")
+    #         return jsonify({
+    #             "ok": False,
+    #             "error": "Invalid or missing image data",
+    #             "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
+    #         }), 200
+    #
+    #     try:
+    #         image_binary = base64.b64decode(image_data.split(",")[1])
+    #
+    #         # 嘗試使用 Pillow 開啟圖片
+    #         try:
+    #             image = Image.open(BytesIO(image_binary)).convert("RGB")
+    #         except UnidentifiedImageError as e:
+    #             # print("❌ Pillow 無法辨識圖片格式:", e)
+    #             return jsonify({"error": "無法辨識圖片格式"}), 400
+    #
+    #         # 寫入為 .jpg 暫存檔
+    #         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", mode="wb") as temp_file:
+    #             image.save(temp_file, format="JPEG")
+    #             temp_file.flush()
+    #             os.fsync(temp_file.fileno())
+    #             temp_file_path = temp_file.name
+    #
+    #         # 4) 進入推論
+    #         log_mem("upload:before process_image")
+    #         t1 = time.perf_counter()
+    #         result = process_image(temp_file_path) or {}
+    #         t2 = time.perf_counter()
+    #         print(f"🟢 [UPLOAD] process_image 完成，耗時 {t2 - t1:.2f}s")
+    #         log_mem("upload:after process_image")
+    #
+    #         # 統一回傳骨架
+    #         safe = {
+    #             "文字辨識": result.get("文字辨識") or ["None"],
+    #             "顏色": (result.get("顏色") or [])[:2],
+    #             "外型": result.get("外型") or "其他",
+    #             "cropped_image": result.get("cropped_image") or ""
+    #         }
+    #         print(f"🟢 [UPLOAD] 推論成功：文字={safe['文字辨識']} 顏色={safe['顏色']} 外型={safe['外型']}")
+    #         print(f"🟢 [UPLOAD] 完成，總耗時 {t2 - t0:.2f}s")
+    #         log_mem("upload:end")
+    #         return jsonify({"ok": True, "result": safe}), 200
+    #
+    #     except Exception as e:
+    #         import traceback;
+    #         traceback.print_exc()
+    #         print(f"🔴 [UPLOAD] 失敗：{e}")
+    #         return jsonify({
+    #             "ok": False,
+    #             "error": f"{e}",
+    #             "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
+    #         }), 200
+    #
+    #     finally:
+    #         try:
+    #             shutil.rmtree("./temp_imgs", ignore_errors=True)
+    #             if temp_file_path and os.path.exists(temp_file_path):
+    #                 os.remove(temp_file_path)
+    #         except Exception as e:
+    #             print(f"⚠️ [UPLOAD] 臨時檔清理失敗：{e}")
 
     @app.route("/api/status")
     def api_status():
