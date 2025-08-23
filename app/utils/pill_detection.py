@@ -49,23 +49,30 @@ def get_det_model():
 def generate_image_versions(base_img):
     """產生多個影像增強版本供 OCR 嘗試"""
     v1 = enhance_contrast(base_img, 1.5, 1.5, -0.5)
-    v2 = desaturate_image(v1)
-    v3 = enhance_contrast(base_img, 5.5, 2.0, -1.0)
-    v4 = desaturate_image(v3)
-    v5 = enhance_for_blur(base_img)
+    # 減少判斷
+    # v2 = desaturate_image(v1)
+    # v3 = enhance_contrast(base_img, 5.5, 2.0, -1.0)
+    # v4 = desaturate_image(v3)
+    # v5 = enhance_for_blur(base_img)
+    # 減少判斷
+    # return [
+    #     (base_img, "原圖"),
+    #     (v1, "增強1"),
+    #     (v2, "去飽和1"),
+    #     (v3, "增強2"),
+    #     (v4, "去飽和2"),
+    #     (v5, "模糊優化"),
+    # ]
     return [
         (base_img, "原圖"),
-        (v1, "增強1"),
-        (v2, "去飽和1"),
-        (v3, "增強2"),
-        (v4, "去飽和2"),
-        (v5, "模糊優化"),
+        (v1, "增強去飽和"),
     ]
 
 
 def get_best_ocr_texts(
         image_versions,
-        angles=(0, 45, 90, 135, 180, 225, 270, 315), ocr_engine=None,
+        # angles=(0, 45, 90, 135, 180, 225, 270, 315), ocr_engine=None,
+        angles=(0, 90, 180, 270), ocr_engine=None,
 ):
     version_results = {}
     score_dict = {}

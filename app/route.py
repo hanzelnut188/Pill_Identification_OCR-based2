@@ -5,8 +5,8 @@ import base64
 import time
 from app.utils.logging_utils import log_mem
 import shutil
-
 from app.utils.pill_detection import process_image
+import tempfile
 
 # 假設這些是從其他模組匯入的變數和函數
 # 你需要根據實際情況調整匯入
@@ -249,8 +249,7 @@ def register_routes(app, data_status):
             print(f"🟡 [UPLOAD] dataURL mime={mime}, ext={ext}, b64len={len(b64data)}")
 
             # 2) 安全解 base64（支援 URL-safe + 自動補齊 padding）
-            from app.utils.pill_detection import process_image
-            import tempfile
+
             try:
                 raw = base64.b64decode(b64data, validate=True)
             except Exception:
