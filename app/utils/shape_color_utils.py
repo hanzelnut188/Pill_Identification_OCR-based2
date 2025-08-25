@@ -223,9 +223,9 @@ def detect_shape_three_classes(contour):
             # print(f"🔍 Ellipse ratio: {ratio:.3f}")#註解SSS
 
             # ➤ 分類
-            if 0.88 <= ratio <= 1.25:
+            if 0.95 <= ratio <= 1.15:
                 shape = "圓形"
-            elif ratio <= 1.9:
+            elif ratio <= 2.3:
                 shape = "橢圓形"
             else:
                 shape = "其他"

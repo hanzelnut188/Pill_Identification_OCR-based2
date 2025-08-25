@@ -9,6 +9,8 @@ import base64
 import time
 from app.utils.logging_utils import log_mem
 import shutil
+
+from app.utils.matcher import match_ocr_to_front_back_by_permuted_ocr
 from app.utils.pill_detection import process_image
 import tempfile
 from PIL import Image, UnidentifiedImageError
@@ -94,15 +96,13 @@ def register_routes(app, data_status):
     # 從 app 取得數據，如果沒有則創建空的 DataFrame
     df = getattr(app, 'df', pd.DataFrame())
 
-    # 你需要根據實際情況初始化這些變數
-    # 這裡假設它們是從數據中建立的索引
     color_dict = getattr(app, 'color_dict', {})
     shape_dict = getattr(app, 'shape_dict', {})
 
     @app.route("/")
     def index():
         try:
-            print("=== DEBUG: Rendering index page ===")
+            # print("=== DEBUG: Rendering index page ===")
             # 使用 Flask 的 render_template 而不是手動讀取
             return render_template("index.html")
         except Exception as e:
@@ -193,7 +193,7 @@ def register_routes(app, data_status):
 
     @app.route("/upload", methods=["POST"])
     def upload_image():
-        print("🟡 [UPLOAD] 收到 POST")
+        # print("🟡 [UPLOAD] 收到 POST")
 
         try:
             t0 = time.perf_counter()
@@ -202,14 +202,14 @@ def register_routes(app, data_status):
                 return jsonify({"ok": False, "error": "缺少 image 欄位"}), 400
 
             b64_data = data["image"]
-            print(f"🟡 [UPLOAD] JSON 解析完成，有 image 欄位: {bool(b64_data)}")
+            # print(f"🟡 [UPLOAD] JSON 解析完成，有 image 欄位: {bool(b64_data)}")
 
             # 嘗試剝除 base64 header
             if b64_data.startswith("data:"):
                 b64_data = b64_data.split(",")[1]
 
             image_bytes = base64.b64decode(b64_data)
-            print(f"🟡 [UPLOAD] base64 解碼成功，長度: {len(image_bytes)} bytes")
+            # print(f"🟡 [UPLOAD] base64 解碼成功，長度: {len(image_bytes)} bytes")
 
             # 嘗試用 Pillow 開啟圖片
             image = None
@@ -217,7 +217,7 @@ def register_routes(app, data_status):
                 image = Image.open(io.BytesIO(image_bytes))
                 image.verify()  # 驗證格式合法
                 image = Image.open(io.BytesIO(image_bytes)).convert("RGB")  # 再打開一次取得像素
-                print("🟢 [UPLOAD] Pillow 成功辨識圖片格式")
+                # print("🟢 [UPLOAD] Pillow 成功辨識圖片格式")
             except Exception as e:
                 print(f"❌ [UPLOAD] Pillow 無法辨識圖片格式: {e}")
                 # 嘗試用 imghdr 判斷副檔名
@@ -230,7 +230,7 @@ def register_routes(app, data_status):
             image.save(temp_file.name)
             temp_path = temp_file.name
             temp_file.close()
-            print(f"🟢 [UPLOAD] 寫入臨時檔 {temp_path} ({os.path.getsize(temp_path)} bytes)")
+            # print(f"🟢 [UPLOAD] 寫入臨時檔 {temp_path} ({os.path.getsize(temp_path)} bytes)")
 
             # 呼叫核心辨識邏輯
             from app.utils.pill_detection import process_image
@@ -259,88 +259,6 @@ def register_routes(app, data_status):
             except Exception as e:
                 print(f"⚠️ [UPLOAD] 臨時檔清理失敗：{e}")
 
-    # route.py 或 __init__.py 內的 /upload
-    # @app.route("/upload", methods=["POST"])
-    # def upload_image():
-    #     print("🟡 [UPLOAD] 收到 POST")
-    #     log_mem("upload:start")
-    #     t0 = time.perf_counter()
-    #     temp_file_path = None
-    #     if not request.is_json:
-    #         print("🔴 [UPLOAD] Content-Type 不是 JSON")
-    #         return jsonify({
-    #             "ok": False,
-    #             "error": "Invalid content type. JSON expected.",
-    #             "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
-    #         }), 200
-    #
-    #     data = request.get_json(silent=True) or {}
-    #     image_data = data.get("image")
-    #     print(f"🟡 [UPLOAD] JSON 解析完成，有 image 欄位: {bool(image_data)}")
-    #
-    #     if not image_data or "," not in image_data:
-    #         print("🔴 [UPLOAD] image 欄位缺失或不是 dataURL")
-    #         return jsonify({
-    #             "ok": False,
-    #             "error": "Invalid or missing image data",
-    #             "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
-    #         }), 200
-    #
-    #     try:
-    #         image_binary = base64.b64decode(image_data.split(",")[1])
-    #
-    #         # 嘗試使用 Pillow 開啟圖片
-    #         try:
-    #             image = Image.open(BytesIO(image_binary)).convert("RGB")
-    #         except UnidentifiedImageError as e:
-    #             # print("❌ Pillow 無法辨識圖片格式:", e)
-    #             return jsonify({"error": "無法辨識圖片格式"}), 400
-    #
-    #         # 寫入為 .jpg 暫存檔
-    #         with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg", mode="wb") as temp_file:
-    #             image.save(temp_file, format="JPEG")
-    #             temp_file.flush()
-    #             os.fsync(temp_file.fileno())
-    #             temp_file_path = temp_file.name
-    #
-    #         # 4) 進入推論
-    #         log_mem("upload:before process_image")
-    #         t1 = time.perf_counter()
-    #         result = process_image(temp_file_path) or {}
-    #         t2 = time.perf_counter()
-    #         print(f"🟢 [UPLOAD] process_image 完成，耗時 {t2 - t1:.2f}s")
-    #         log_mem("upload:after process_image")
-    #
-    #         # 統一回傳骨架
-    #         safe = {
-    #             "文字辨識": result.get("文字辨識") or ["None"],
-    #             "顏色": (result.get("顏色") or [])[:2],
-    #             "外型": result.get("外型") or "其他",
-    #             "cropped_image": result.get("cropped_image") or ""
-    #         }
-    #         print(f"🟢 [UPLOAD] 推論成功：文字={safe['文字辨識']} 顏色={safe['顏色']} 外型={safe['外型']}")
-    #         print(f"🟢 [UPLOAD] 完成，總耗時 {t2 - t0:.2f}s")
-    #         log_mem("upload:end")
-    #         return jsonify({"ok": True, "result": safe}), 200
-    #
-    #     except Exception as e:
-    #         import traceback;
-    #         traceback.print_exc()
-    #         print(f"🔴 [UPLOAD] 失敗：{e}")
-    #         return jsonify({
-    #             "ok": False,
-    #             "error": f"{e}",
-    #             "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
-    #         }), 200
-    #
-    #     finally:
-    #         try:
-    #             shutil.rmtree("./temp_imgs", ignore_errors=True)
-    #             if temp_file_path and os.path.exists(temp_file_path):
-    #                 os.remove(temp_file_path)
-    #         except Exception as e:
-    #             print(f"⚠️ [UPLOAD] 臨時檔清理失敗：{e}")
-
     @app.route("/api/status")
     def api_status():
         return jsonify({
@@ -351,16 +269,16 @@ def register_routes(app, data_status):
             "endpoints": ["/", "/healthz", "/debug", "/api/status"]
         })
 
-    print("✓ Routes registered successfully")
+    # print("✓ Routes registered successfully")
 
     @app.route("/match", methods=["POST"])
     def match_drug():
         """藥物比對路由"""
-        print("🟡 [MATCH] 收到請求")
+        # print("🟡 [MATCH] 收到請求")
         try:
             data = request.get_json()
-            print(
-                f"🟡 [MATCH] 請求內容：texts={data.get('texts')}, colors={data.get('colors')}, shape={data.get('shape')}")
+            # print(
+            #     f"🟡 [MATCH] 請求內容：texts={data.get('texts')}, colors={data.get('colors')}, shape={data.get('shape')}")
             texts = data.get("texts", [])
             colors = data.get("colors", [])
             shape = data.get("shape", "")
@@ -368,7 +286,7 @@ def register_routes(app, data_status):
             if df.empty:
                 print("🔴 [MATCH] 錯誤：資料庫未載入")
                 return jsonify({"error": "資料庫未載入"}), 500
-            print("🟡 [MATCH] 開始篩選候選藥物")
+            # print("🟡 [MATCH] 開始篩選候選藥物")
             # 尋找候選藥物
             candidates = set()
 
@@ -418,13 +336,13 @@ def register_routes(app, data_status):
                     })
 
                 return jsonify({"candidates": results})
-            print("[DEBUG] STEP 4 - Shape", shape)
+            # print("[DEBUG] STEP 4 - Shape", shape)
             # 進行 OCR 比對 - 這個函數需要你實作或匯入
             try:
-                # match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
+                match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
                 # 暫時的替代方案
                 print(f"🟡 [MATCH] 有文字，要進行比對 ➜ {texts}")
-                match_result = {"front": {"row": df_sub.iloc[0] if not df_sub.empty else None}}
+                # match_result = {"front": {"row": df_sub.iloc[0] if not df_sub.empty else None}}
             except NameError:
                 return jsonify({"error": "OCR 比對功能未實作"}), 500
 
