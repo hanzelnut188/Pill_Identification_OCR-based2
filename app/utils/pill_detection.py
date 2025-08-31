@@ -63,16 +63,22 @@ def generate_image_versions(base_img):
     #     (v4, "去飽和2"),
     #     (v5, "模糊優化"),
     # ]
+
+    # return [
+    #     (base_img, "原圖"),
+    #     (v1, "增強去飽和"),
+    # ]
     return [
         (base_img, "原圖"),
-        (v1, "增強去飽和"),
+
     ]
 
 
 def get_best_ocr_texts(
         image_versions,
         # angles=(0, 45, 90, 135, 180, 225, 270, 315), ocr_engine=None,
-        angles=(0, 90, 180, 270), ocr_engine=None,
+        # angles=(0, 90, 180, 270), ocr_engine=None,
+        angles=(0, 90), ocr_engine=None,
 ):
     version_results = {}
     score_dict = {}

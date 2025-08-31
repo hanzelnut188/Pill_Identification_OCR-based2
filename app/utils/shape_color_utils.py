@@ -1,5 +1,23 @@
 import cv2
 
+###統計可刪###
+# At top-level
+RATIO_LOG = []  # list of dicts: {"ratio": float, "pred": str, "exp": str}
+
+
+def log_ratio(ratio, pred_shape, exp_shape=None):
+    try:
+        RATIO_LOG.append({"ratio": float(ratio), "pred": str(pred_shape), "exp": str(exp_shape or "")})
+    except Exception:
+        pass
+
+
+def get_ratio_log():
+    return RATIO_LOG
+
+
+########################################
+
 
 def rotate_image_by_angle(image, angle):
     """
@@ -119,42 +137,42 @@ def extract_dominant_colors_by_ratio(cropped_img, k=4, min_ratio=0.38):
 
 
 # ===外型辨識函式 ===
-def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None):
-    try:
-        output = cropped_img.copy()
-        thresh = preprocess_with_shadow_correction(output)
-
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        shape = "其他"
-
-        if not contours and original_img is not None:
-            # print("⚠️ 無偵測到輪廓，改用原圖嘗試")#註解SSS
-            gray_fallback = cv2.cvtColor(original_img, cv2.COLOR_BGR2GRAY)
-            _, thresh_fallback = cv2.threshold(gray_fallback, 127, 255, cv2.THRESH_BINARY)
-            contours_fallback, _ = cv2.findContours(thresh_fallback, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            if contours_fallback:
-                main_contour = max(contours_fallback, key=cv2.contourArea)
-                shape = detect_shape_three_classes(main_contour)
-            else:
-                print("⚠️ 二次嘗試仍無輪廓，標記為其他")  # 註解SSS
-        elif contours:
-            main_contour = max(contours, key=cv2.contourArea)
-            area = cv2.contourArea(main_contour)
-            img_area = cropped_img.shape[0] * cropped_img.shape[1]
-            area_ratio = area / img_area
-            # print(f"📐 輪廓面積：{area:.1f}，圖片面積：{img_area:.1f}，佔比：{area_ratio:.2%}")#註解SSS
-            shape = detect_shape_three_classes(main_contour)
-
-        if expected_shape:
-            result = "✅" if shape == expected_shape else "❌"
-            # print(f"📏 預測結果：{shape}，正確結果：{expected_shape} {result}")#註解SSS
-            return shape, result
-        return shape, None
-
-    except Exception as e:
-        print(f"❗ 發生錯誤：{e}")  # 註解SSS
-        return "錯誤", None
+# def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None):
+#     try:
+#         output = cropped_img.copy()
+#         thresh = preprocess_with_shadow_correction(output)
+#
+#         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+#         shape = "其他"
+#
+#         if not contours and original_img is not None:
+#             # print("⚠️ 無偵測到輪廓，改用原圖嘗試")#註解SSS
+#             gray_fallback = cv2.cvtColor(original_img, cv2.COLOR_BGR2GRAY)
+#             _, thresh_fallback = cv2.threshold(gray_fallback, 127, 255, cv2.THRESH_BINARY)
+#             contours_fallback, _ = cv2.findContours(thresh_fallback, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#
+#             if contours_fallback:
+#                 main_contour = max(contours_fallback, key=cv2.contourArea)
+#                 shape = detect_shape_three_classes(main_contour)
+#             else:
+#                 print("⚠️ 二次嘗試仍無輪廓，標記為其他")  # 註解SSS
+#         elif contours:
+#             main_contour = max(contours, key=cv2.contourArea)
+#             area = cv2.contourArea(main_contour)
+#             img_area = cropped_img.shape[0] * cropped_img.shape[1]
+#             area_ratio = area / img_area
+#             # print(f"📐 輪廓面積：{area:.1f}，圖片面積：{img_area:.1f}，佔比：{area_ratio:.2%}")#註解SSS
+#             shape = detect_shape_three_classes(main_contour)
+#
+#         if expected_shape:
+#             result = "✅" if shape == expected_shape else "❌"
+#             # print(f"📏 預測結果：{shape}，正確結果：{expected_shape} {result}")#註解SSS
+#             return shape, result
+#         return shape, None
+#
+#     except Exception as e:
+#         print(f"❗ 發生錯誤：{e}")  # 註解SSS
+#         return "錯誤", None
 
 
 # === 增強處理函式 ===
@@ -179,6 +197,17 @@ def enhance_for_blur(img):
 
 
 # === 3. 定義讀取 HEIC 的函式 ===
+# === 可調參數（預設值放你目前最佳）===
+CIRCLE_LO = 1
+CIRCLE_HI = 1.2
+ELLIPSE_HI = 3.8
+
+
+def set_shape_thresholds(circle_lo: float, circle_hi: float, ellipse_hi: float):
+    global CIRCLE_LO, CIRCLE_HI, ELLIPSE_HI
+    CIRCLE_LO = circle_lo
+    CIRCLE_HI = circle_hi
+    ELLIPSE_HI = ellipse_hi
 
 
 # === 形狀辨識相關 ===
@@ -202,37 +231,170 @@ def preprocess_with_shadow_correction(img_bgr):
     return thresh
 
 
-# === 放在檔案頂部定義統計用清單 ===
+###統計後可刪###
 ratios_list = []
 
 
-def detect_shape_three_classes(contour):
+def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None):
+    try:
+        output = cropped_img.copy()
+        thresh = preprocess_with_shadow_correction(output)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        shape = "其他"
+        if not contours and original_img is not None:
+            gray_fallback = cv2.cvtColor(original_img, cv2.COLOR_BGR2GRAY)
+            _, thresh_fallback = cv2.threshold(gray_fallback, 127, 255, cv2.THRESH_BINARY)
+            contours_fallback, _ = cv2.findContours(thresh_fallback, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours_fallback:
+                main_contour = max(contours_fallback, key=cv2.contourArea)
+                shape = detect_shape_three_classes(main_contour, expected_shape=expected_shape)
+        elif contours:
+            main_contour = max(contours, key=cv2.contourArea)
+            shape = detect_shape_three_classes(main_contour, expected_shape=expected_shape)
+
+        if expected_shape:
+            result = "✅" if shape == expected_shape else "❌"
+            return shape, result
+        return shape, None
+    except Exception as e:
+        print(f"❗ 發生錯誤：{e}")
+        return "錯誤", None
+
+
+def detect_shape_three_classes(contour, expected_shape=None):
     shape = "其他"
-    # print(len(contour))#註解SSS
     try:
         if len(contour) >= 5:
             ellipse = cv2.fitEllipse(contour)
             (center, axes, angle) = ellipse
             major, minor = axes
-
             if minor == 0:
                 return shape
 
             ratio = max(major, minor) / min(major, minor)
             ratios_list.append(ratio)
-            # print(f"🔍 Ellipse ratio: {ratio:.3f}")#註解SSS
 
-            # ➤ 分類
-            if 0.95 <= ratio <= 1.15:
+            # === classify with global thresholds ===
+            if CIRCLE_LO <= ratio <= CIRCLE_HI:
                 shape = "圓形"
-            elif ratio <= 2.3:
+            elif ratio <= ELLIPSE_HI:
                 shape = "橢圓形"
             else:
                 shape = "其他"
 
-            # print(f"📏 shape ratio: {ratio:.2f} => 判斷為 {shape}")
-
-    except  Exception as e:
+            # === log ratio with predicted and expected shapes ===
+            try:
+                log_ratio(ratio, shape, expected_shape)
+            except Exception:
+                pass
+    except Exception as e:
         print(f"❗ detect_shape_three_classes 發生錯誤：{e}")
-
     return shape
+#########################################
+
+
+###測試後
+# def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None):
+#     try:
+#         output = cropped_img.copy()
+#         thresh = preprocess_with_shadow_correction(output)
+#
+#         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+#         shape = "其他"
+#
+#         if not contours and original_img is not None:
+#             # print("⚠️ 無偵測到輪廓，改用原圖嘗試")#註解SSS
+#             gray_fallback = cv2.cvtColor(original_img, cv2.COLOR_BGR2GRAY)
+#             _, thresh_fallback = cv2.threshold(gray_fallback, 127, 255, cv2.THRESH_BINARY)
+#             contours_fallback, _ = cv2.findContours(thresh_fallback, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#
+#             if contours_fallback:
+#                 main_contour = max(contours_fallback, key=cv2.contourArea)
+#                 shape = detect_shape_three_classes(main_contour)
+#             else:
+#                 print("⚠️ 二次嘗試仍無輪廓，標記為其他")  # 註解SSS
+#         elif contours:
+#             main_contour = max(contours, key=cv2.contourArea)
+#             area = cv2.contourArea(main_contour)
+#             img_area = cropped_img.shape[0] * cropped_img.shape[1]
+#             area_ratio = area / img_area
+#             # print(f"📐 輪廓面積：{area:.1f}，圖片面積：{img_area:.1f}，佔比：{area_ratio:.2%}")#註解SSS
+#             shape = detect_shape_three_classes(main_contour)
+#
+#         if expected_shape:
+#             result = "✅" if shape == expected_shape else "❌"
+#             # print(f"📏 預測結果：{shape}，正確結果：{expected_shape} {result}")#註解SSS
+#             return shape, result
+#         return shape, None
+#
+#     except Exception as e:
+#         print(f"❗ 發生錯誤：{e}")  # 註解SSS
+#         return "錯誤", None
+# === 放在檔案頂部定義統計用清單 ===
+# ratios_list = []
+#
+#
+# def detect_shape_three_classes(contour):
+#     shape = "其他"
+#     # print(len(contour))#註解SSS
+#     try:
+#         if len(contour) >= 5:
+#             ellipse = cv2.fitEllipse(contour)
+#             (center, axes, angle) = ellipse
+#             major, minor = axes
+#
+#             if minor == 0:
+#                 return shape
+#
+#             ratio = max(major, minor) / min(major, minor)
+#             ratios_list.append(ratio)
+#             # print(f"🔍 Ellipse ratio: {ratio:.3f}")#註解SSS
+#
+#             # ➤ 分類
+#             # ➤ 分類：用全域門檻
+#             if CIRCLE_LO <= ratio <= CIRCLE_HI:
+#                 shape = "圓形"
+#             elif ratio <= ELLIPSE_HI:
+#                 shape = "橢圓形"
+#             else:
+#                 shape = "其他"
+#
+#
+#     # print(f"📏 shape ratio: {ratio:.2f} => 判斷為 {shape}")
+#
+#     except  Exception as e:
+#         print(f"❗ detect_shape_three_classes 發生錯誤：{e}")
+#
+#     return shape
+
+# 測試前
+# def detect_shape_three_classes(contour):
+#     shape = "其他"
+#     # print(len(contour))#註解SSS
+#     try:
+#         if len(contour) >= 5:
+#             ellipse = cv2.fitEllipse(contour)
+#             (center, axes, angle) = ellipse
+#             major, minor = axes
+#
+#             if minor == 0:
+#                 return shape
+#
+#             ratio = max(major, minor) / min(major, minor)
+#             ratios_list.append(ratio)
+#             # print(f"🔍 Ellipse ratio: {ratio:.3f}")#註解SSS
+#
+#             # ➤ 分類
+#             if 0.95 <= ratio <= 1.15:
+#                 shape = "圓形"
+#             elif ratio <= 2.3:
+#                 shape = "橢圓形"
+#             else:
+#                 shape = "其他"
+#
+#             # print(f"📏 shape ratio: {ratio:.2f} => 判斷為 {shape}")
+#
+#     except  Exception as e:
+#         print(f"❗ detect_shape_three_classes 發生錯誤：{e}")
+#
+#     return shape

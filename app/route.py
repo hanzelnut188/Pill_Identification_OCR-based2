@@ -2,18 +2,14 @@ import imghdr
 import io
 import os
 from io import BytesIO
-
 import pandas as pd
 from flask import request, jsonify, render_template
 import base64
 import time
-from app.utils.logging_utils import log_mem
 import shutil
-
 from app.utils.matcher import match_ocr_to_front_back_by_permuted_ocr
-from app.utils.pill_detection import process_image
 import tempfile
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 from pillow_heif import register_heif_opener
 
 register_heif_opener()  # ✅ 全域註冊 HEIC 支援

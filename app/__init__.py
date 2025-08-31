@@ -10,9 +10,6 @@ from app.route import register_routes
 from app.utils.data_loader import generate_color_shape_dicts
 from app.utils.logging_utils import log_mem
 
-# print("=== DEBUG: Starting app/__init__.py ===")
-# print(f"Current working directory: {os.getcwd()}")
-
 try:
     from flask import Flask, jsonify, render_template
 
@@ -35,10 +32,6 @@ def create_app():
     base_dir = os.getcwd()
     template_folder = os.path.join(base_dir, "app", "templates")
     static_folder = os.path.join(base_dir, "app", "static")
-
-    # print(f"Base directory: {base_dir}")
-    # print(f"Using template folder: {template_folder}")
-    # print(f"Using static folder: {static_folder}")
 
     # 檢查路徑是否存在
     if os.path.exists(template_folder):
@@ -141,11 +134,11 @@ def create_app():
         data_status = f"Data load failed: {str(e)}"
         app.df = None
     log_mem("after data load")
+
     # 註冊路由
 
     register_routes(app, data_status)
-    # print("=== DEBUG: create_app() completed successfully ===")
+
     log_mem("after register_routes")
 
-    # print("=== DEBUG: create_app() completed successfully ===")
     return app
