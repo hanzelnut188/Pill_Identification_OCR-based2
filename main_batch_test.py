@@ -6,6 +6,9 @@ import re
 import datetime
 from pathlib import Path
 from collections import defaultdict
+
+import cv2
+
 import app.utils.shape_color_utils as scu
 import datetime
 import os
@@ -19,8 +22,10 @@ from app.utils.pill_detection import (
 )
 from app.utils.image_io import read_image_safely
 from app.utils.shape_color_utils import (
-    extract_dominant_colors_by_ratio
-, detect_shape_from_image
+    # extract_dominant_colors_by_ratio
+    get_basic_color_name,
+    get_dominant_colors,
+    detect_shape_from_image
 )
 # OCR helpers (use pill_detection’s OpenOCR engine & version generator)
 import app.utils.pill_detection as P  # gives access to generate_image_versions, get_best_ocr_texts, ocr_engine
@@ -141,8 +146,21 @@ def _run_single_image(img_path: Path, det_model, exp_shape=None):
 
     # Shape / Color
     shape, _ = detect_shape_from_image(crop, expected_shape=exp_shape)
-    colors = extract_dominant_colors_by_ratio(crop)
+    # colors = extract_dominant_colors_by_ratio(crop)
+    rgb_colors, hex_colors = get_dominant_colors(crop, k=3, min_ratio=0.30)
+    rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
+    basic_names = []
+    hsv_values = []
+    for rgb in rgb_colors_int:
+        bgr = np.uint8([[rgb[::-1]]])
+        h_raw, s, v = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)[0][0]
+        h_deg = h_raw * 2
+        hsv_values.append((h_deg, s, v))
 
+        cname = get_basic_color_name(rgb)
+        basic_names.append(cname)
+
+    colors = list(dict.fromkeys(basic_names))
     # OCR: generate versions then pick best
     versions = P.generate_image_versions(crop)
     texts, _, _ = P.get_best_ocr_texts(versions, ocr_engine=P.ocr_engine)
@@ -388,7 +406,6 @@ def main(
 
     t2 = time.perf_counter()
     print(f"完成，總耗時 {t2 - t0:.2f}s")
-
 
     return shape_success_total / total_images if total_images else 0.0
 
