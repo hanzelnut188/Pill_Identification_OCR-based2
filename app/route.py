@@ -83,9 +83,6 @@ def get_fallback_html():
 </html>"""
 
 
-print("=== DEBUG: app/__init__.py loaded successfully ===")
-
-
 def register_routes(app, data_status):
     """註冊所有路由到 Flask app"""
 

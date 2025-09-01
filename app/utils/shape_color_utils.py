@@ -1,23 +1,5 @@
 import cv2
 
-###統計可刪###
-# At top-level
-RATIO_LOG = []  # list of dicts: {"ratio": float, "pred": str, "exp": str}
-
-
-def log_ratio(ratio, pred_shape, exp_shape=None):
-    try:
-        RATIO_LOG.append({"ratio": float(ratio), "pred": str(pred_shape), "exp": str(exp_shape or "")})
-    except Exception:
-        pass
-
-
-def get_ratio_log():
-    return RATIO_LOG
-
-
-########################################
-
 
 def rotate_image_by_angle(image, angle):
     """
@@ -136,45 +118,6 @@ def extract_dominant_colors_by_ratio(cropped_img, k=4, min_ratio=0.38):
     return extended
 
 
-# ===外型辨識函式 ===
-# def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None):
-#     try:
-#         output = cropped_img.copy()
-#         thresh = preprocess_with_shadow_correction(output)
-#
-#         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-#         shape = "其他"
-#
-#         if not contours and original_img is not None:
-#             # print("⚠️ 無偵測到輪廓，改用原圖嘗試")#註解SSS
-#             gray_fallback = cv2.cvtColor(original_img, cv2.COLOR_BGR2GRAY)
-#             _, thresh_fallback = cv2.threshold(gray_fallback, 127, 255, cv2.THRESH_BINARY)
-#             contours_fallback, _ = cv2.findContours(thresh_fallback, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-#
-#             if contours_fallback:
-#                 main_contour = max(contours_fallback, key=cv2.contourArea)
-#                 shape = detect_shape_three_classes(main_contour)
-#             else:
-#                 print("⚠️ 二次嘗試仍無輪廓，標記為其他")  # 註解SSS
-#         elif contours:
-#             main_contour = max(contours, key=cv2.contourArea)
-#             area = cv2.contourArea(main_contour)
-#             img_area = cropped_img.shape[0] * cropped_img.shape[1]
-#             area_ratio = area / img_area
-#             # print(f"📐 輪廓面積：{area:.1f}，圖片面積：{img_area:.1f}，佔比：{area_ratio:.2%}")#註解SSS
-#             shape = detect_shape_three_classes(main_contour)
-#
-#         if expected_shape:
-#             result = "✅" if shape == expected_shape else "❌"
-#             # print(f"📏 預測結果：{shape}，正確結果：{expected_shape} {result}")#註解SSS
-#             return shape, result
-#         return shape, None
-#
-#     except Exception as e:
-#         print(f"❗ 發生錯誤：{e}")  # 註解SSS
-#         return "錯誤", None
-
-
 # === 增強處理函式 ===
 
 def desaturate_image(img):
@@ -210,29 +153,73 @@ def set_shape_thresholds(circle_lo: float, circle_hi: float, ellipse_hi: float):
     ELLIPSE_HI = ellipse_hi
 
 
-# === 形狀辨識相關 ===
+def detect_shape_three_classes(contour, expected_shape=None):
+    shape = "其他"
+    try:
+        if len(contour) >= 5:
+            ellipse = cv2.fitEllipse(contour)
+            (center, axes, angle) = ellipse
+            major, minor = axes
+            if minor == 0:
+                return shape
+
+            ratio = max(major, minor) / min(major, minor)
+            ratios_list.append(ratio)
+
+            # === classify with global thresholds ===
+            if CIRCLE_LO <= ratio <= CIRCLE_HI:
+                shape = "圓形"
+            elif ratio <= ELLIPSE_HI:
+                shape = "橢圓形"
+            else:
+                shape = "其他"
+
+
+    except Exception as e:
+        print(f"❗ detect_shape_three_classes 發生錯誤：{e}")
+    return shape
+
+
+# def preprocess_with_shadow_correction(img_bgr):
+#     """校正陰影與自動二值化，改善輪廓品質"""
+#     # Step 1: 灰階轉換
+#     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+#
+#     # Step 2: 高斯模糊計算背景亮度
+#     blur = cv2.GaussianBlur(gray, (55, 55), 0)
+#
+#     # Step 3: 灰階除以背景亮度 => 修正陰影
+#     corrected = cv2.divide(gray, blur, scale=255)
+#
+#     # Step 4: 自適應 threshold => 適合局部亮度變化
+#     thresh = cv2.adaptiveThreshold(
+#         corrected, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+#         cv2.THRESH_BINARY, 21, 10
+#     )
+#
+#     return thresh
 def preprocess_with_shadow_correction(img_bgr):
-    """校正陰影與自動二值化，改善輪廓品質"""
-    # Step 1: 灰階轉換
+    """改進的前處理，更好地分離藥物與背景"""
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
 
-    # Step 2: 高斯模糊計算背景亮度
-    blur = cv2.GaussianBlur(gray, (55, 55), 0)
+    # 多尺度的背景估計
+    blur1 = cv2.GaussianBlur(gray, (25, 25), 0)
+    blur2 = cv2.GaussianBlur(gray, (75, 75), 0)
 
-    # Step 3: 灰階除以背景亮度 => 修正陰影
-    corrected = cv2.divide(gray, blur, scale=255)
+    # 雙重陰影校正
+    corrected1 = cv2.divide(gray, blur1, scale=255)
+    corrected2 = cv2.divide(gray, blur2, scale=255)
+    corrected = cv2.addWeighted(corrected1, 0.5, corrected2, 0.5, 0)
 
-    # Step 4: 自適應 threshold => 適合局部亮度變化
-    thresh = cv2.adaptiveThreshold(
-        corrected, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY, 21, 10
-    )
+    # 使用 OTSU 自動找最佳閾值
+    _, otsu_thresh = cv2.threshold(corrected, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    return thresh
+    # 形態學操作去除雜訊
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    cleaned = cv2.morphologyEx(otsu_thresh, cv2.MORPH_CLOSE, kernel)
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN, kernel)
 
-
-###統計後可刪###
-ratios_list = []
+    return cleaned
 
 
 def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None):
@@ -261,35 +248,8 @@ def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None)
         return "錯誤", None
 
 
-def detect_shape_three_classes(contour, expected_shape=None):
-    shape = "其他"
-    try:
-        if len(contour) >= 5:
-            ellipse = cv2.fitEllipse(contour)
-            (center, axes, angle) = ellipse
-            major, minor = axes
-            if minor == 0:
-                return shape
+ratios_list = []
 
-            ratio = max(major, minor) / min(major, minor)
-            ratios_list.append(ratio)
-
-            # === classify with global thresholds ===
-            if CIRCLE_LO <= ratio <= CIRCLE_HI:
-                shape = "圓形"
-            elif ratio <= ELLIPSE_HI:
-                shape = "橢圓形"
-            else:
-                shape = "其他"
-
-            # === log ratio with predicted and expected shapes ===
-            try:
-                log_ratio(ratio, shape, expected_shape)
-            except Exception:
-                pass
-    except Exception as e:
-        print(f"❗ detect_shape_three_classes 發生錯誤：{e}")
-    return shape
 #########################################
 
 
@@ -334,39 +294,6 @@ def detect_shape_three_classes(contour, expected_shape=None):
 # ratios_list = []
 #
 #
-# def detect_shape_three_classes(contour):
-#     shape = "其他"
-#     # print(len(contour))#註解SSS
-#     try:
-#         if len(contour) >= 5:
-#             ellipse = cv2.fitEllipse(contour)
-#             (center, axes, angle) = ellipse
-#             major, minor = axes
-#
-#             if minor == 0:
-#                 return shape
-#
-#             ratio = max(major, minor) / min(major, minor)
-#             ratios_list.append(ratio)
-#             # print(f"🔍 Ellipse ratio: {ratio:.3f}")#註解SSS
-#
-#             # ➤ 分類
-#             # ➤ 分類：用全域門檻
-#             if CIRCLE_LO <= ratio <= CIRCLE_HI:
-#                 shape = "圓形"
-#             elif ratio <= ELLIPSE_HI:
-#                 shape = "橢圓形"
-#             else:
-#                 shape = "其他"
-#
-#
-#     # print(f"📏 shape ratio: {ratio:.2f} => 判斷為 {shape}")
-#
-#     except  Exception as e:
-#         print(f"❗ detect_shape_three_classes 發生錯誤：{e}")
-#
-#     return shape
-
 # 測試前
 # def detect_shape_three_classes(contour):
 #     shape = "其他"

@@ -35,14 +35,13 @@ def get_det_model():
     """Lazy-load YOLO 權重，只初始化一次"""
     global _det_model
     if _det_model is None:
-        print("[DET] loading YOLO model…")
         m = YOLO("models/best.pt")
         try:
             m.fuse()
         except Exception:
             pass
         _det_model = m
-        print("[DET] model ready")
+
     return _det_model
 
 
@@ -128,17 +127,16 @@ def process_image(img_path: str):
     單張藥品圖片辨識流程：
     YOLO → 裁切 → 顏色/外型 → 多版本 OCR → 回傳
     """
-    print(f"[PROC] start process_image: {img_path}")
-    log_mem("infer:start")
+
     det_model = get_det_model()
-    log_mem("infer:after_get_model")
+
     # === 讀取圖片 ===
     input_img = read_image_safely(img_path)
     if input_img is None:
         return {"error": "無法讀取圖片"}
 
     # === YOLO 偵測（先正常閾值，失敗再降閾值）===
-    print("[PROC] YOLO predict (conf=0.25)…")
+
     res = det_model.predict(
         source=input_img, imgsz=640, conf=0.25, iou=0.7, device=DEVICE, verbose=False
     )[0]
@@ -151,7 +149,7 @@ def process_image(img_path: str):
         res_lo = det_model.predict(
             source=input_img, imgsz=640, conf=0.10, iou=0.7, device=DEVICE, verbose=False
         )[0]
-        log_mem("infer:after_predict")
+
         boxes_lo = res_lo.boxes
         if boxes_lo is not None and boxes_lo.xyxy.shape[0] > 0:
             cropped = _pick_crop_from_boxes(input_img, boxes_lo)

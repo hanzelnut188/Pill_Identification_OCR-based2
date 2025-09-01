@@ -62,14 +62,14 @@ def create_app():
                 break
 
     if os.path.exists(static_folder):
-        # print(f"✓ Static folder exists: {static_folder}")
+
         try:
             static_files = os.listdir(static_folder)
             # print(f"  Static files: {static_files}")
         except Exception as e:
             print(f"  Error listing static files: {e}")
     else:
-        # print(f"✗ Static folder not found: {static_folder}")
+
         # 嘗試其他可能的路徑
         alternative_static_paths = [
             os.path.join(base_dir, "static"),
@@ -90,19 +90,15 @@ def create_app():
             static_folder=static_folder,
             static_url_path='/static'
         )
-        # print(f"✓ Flask app created")
-        # print(f"  Template folder (actual): {app.template_folder}")
-        # print(f"  Static folder (actual): {app.static_folder}")
-        # print(f"  Static URL path: {app.static_url_path}")
-        log_mem("after Flask app created")
+
         # 🔥 驗證 Flask 能找到模板
         try:
             template_loader = app.jinja_env.loader
-            # print(f"  Jinja2 loader: {template_loader}")
+
 
             # 測試模板載入
             template_source = template_loader.get_source(app.jinja_env, 'index.html')
-            # print("✓ Flask can find index.html template")
+
 
         except Exception as template_test_error:
             print(f"❌ Flask cannot find template: {template_test_error}")
@@ -113,7 +109,7 @@ def create_app():
 
     try:
         CORS(app)
-        # print("✓ CORS configured")
+
     except Exception as e:
         print(f"✗ Error configuring CORS: {e}")
 
@@ -121,7 +117,7 @@ def create_app():
     try:
         import pandas as pd
         df = pd.read_excel("data/TESTData.xlsx")
-        # print(f"✓ Successfully loaded Excel with {len(df)} rows")
+
         data_status = f"Data loaded: {len(df)} rows"
         app.df = df
         # ✅ 動態生成分類字典
@@ -133,12 +129,12 @@ def create_app():
         print(f"✗ Error loading data: {e}")
         data_status = f"Data load failed: {str(e)}"
         app.df = None
-    log_mem("after data load")
+
 
     # 註冊路由
 
     register_routes(app, data_status)
 
-    log_mem("after register_routes")
+
 
     return app

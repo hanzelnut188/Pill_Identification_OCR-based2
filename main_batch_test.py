@@ -19,8 +19,8 @@ from app.utils.pill_detection import (
 )
 from app.utils.image_io import read_image_safely
 from app.utils.shape_color_utils import (
-    extract_dominant_colors_by_ratio,
-    detect_shape_from_image,
+    extract_dominant_colors_by_ratio
+, detect_shape_from_image
 )
 # OCR helpers (use pill_detection’s OpenOCR engine & version generator)
 import app.utils.pill_detection as P  # gives access to generate_image_versions, get_best_ocr_texts, ocr_engine
@@ -270,27 +270,27 @@ def main(
     print("🔠 文字辨識：")
     print(f" - 辨識結果：{text_success_total} 張正確")
     print(f" - 正式結果：{total_images} 張（總圖片數）")
-    print(f" - 辨識成功率：{(text_success_total / total_images):.2%}" if total_images else " - 辨識成功率：N/A")
+    print(f" - 辨識成功率：{text_rate:.2%}" if total_images else " - 辨識成功率：N/A")
 
     print("\n🟫 外型辨識：")
     print(f" - 辨識結果：{shape_success_total} 張正確")
     print(f" - 正確結果：{total_images} 張（總圖片數）")
-    print(f" - 辨識成功率：{(shape_success_total / total_images):.2%}" if total_images else " - 辨識成功率：N/A")
+    print(f" - 辨識成功率：{shape_rate:.2%}" if total_images else " - 辨識成功率：N/A")
 
     print("\n🎨 顏色辨識：")
     print(f" - 辨識結果：{color_success_total} 張正確")
     print(f" - 正確結果：{total_images} 張（總圖片數）")
-    print(f" - 辨識成功率：{(color_success_total / total_images):.2%}" if total_images else " - 辨識成功率：N/A")
+    print(f" - 辨識成功率：{color_rate:.2%}" if total_images else " - 辨識成功率：N/A")
 
     print("\n💊 藥品名稱比對：")
     print(f" - 辨識結果：{total_success} 張比對成功")
     print(f" - 正確結果：{total_images} 張（總圖片數）")
     print(
-        f" - 整體辨識成功率（以文字為主）：{(total_success / total_images):.2%}" if total_images else " - 整體辨識成功率（以文字為主）：N/A")
+        f" - 整體辨識成功率（以文字為主）：{match_rate:.2%}" if total_images else " - 整體辨識成功率（以文字為主）：N/A")
 
     print("\n🔍 Roboflow 偵測統計：")
     print(f" - 成功偵測圖片數：{roboflow_success} / {roboflow_total}")
-    print(f" - 偵測成功率：{(roboflow_success / roboflow_total):.2%}" if roboflow_total else " - 偵測成功率：N/A")
+    print(f" - 偵測成功率：{yolo_rate:.2%}" if roboflow_total else " - 偵測成功率：N/A")
 
     # print("📦 各藥品辨識情況：")
     # for drug, stats in per_drug_stats.items():
@@ -388,25 +388,7 @@ def main(
 
     t2 = time.perf_counter()
     print(f"完成，總耗時 {t2 - t0:.2f}s")
-    # === Ratio distribution diagnostics (by expected and predicted shapes) ===
 
-
-
-    logs = scu.get_ratio_log()
-    if logs:
-        df_r = pd.DataFrame(logs)
-
-        def print_stats(by_col, title):
-            print(f"\n[Ratio stats by {title}]")
-            for cls in ["圓形", "橢圓形", "其他"]:
-                s = df_r.loc[df_r[by_col] == cls, "ratio"].astype(float)
-                if not s.empty:
-                    q = np.percentile(s, [5, 25, 50, 75, 95])
-                    print(
-                        f"  {cls}: n={len(s)}  p5={q[0]:.3f} p25={q[1]:.3f} p50={q[2]:.3f} p75={q[3]:.3f} p95={q[4]:.3f}")
-
-        print_stats("exp", "EXPECTED (ground truth)")
-        print_stats("pred", "PREDICTED")
 
     return shape_success_total / total_images if total_images else 0.0
 
@@ -425,55 +407,18 @@ if __name__ == "__main__":
     end = int(os.environ.get("BATCH_END", DEFAULT_END))
     report = Path(os.environ.get("BATCH_REPORT", DEFAULT_REPORT_XLSX))
 
-    # DO_SEARCH = True  # 想直接跑單次就設 False
     DO_SEARCH = False  # 想直接跑單次就設 False
+    # DO_SEARCH = False  # 想直接跑單次就設 False
     _set_shape_thresholds(1.00, 1.20, 3.80)
     if not DO_SEARCH:
         # 單次跑：用目前預設門檻
         acc = main(excel, root, start, end, report)  # 或 main(..., write_report=True)
         print(f"[RUN] shape accuracy = {acc:.4%}")
     else:
-        # === 參數網格（可依你的經驗縮小範圍）===
-        # grid_lo = [0.92, 0.94, 0.95]
-        # grid_hi = [1.15, 1.16, 1.18]
-        # grid_ehi = [2.20, 2.25, 2.30]
-        # 1) acc=87.2486%  circle=(1.00,1.18)  ellipse<=3.00
-        # 2) acc=86.9287%  circle=(1.00,1.18)  ellipse<=2.50
-        # 3) acc=86.8373%  circle=(1.00,1.26)  ellipse<=3.00
-        # 4) acc=86.5174%  circle=(1.00,1.26)  ellipse<=2.50
-        # 5) acc=83.3181%  circle=(1.00,1.10)  ellipse<=3.00
-        # 6) acc=82.9982%  circle=(1.00,1.10)  ellipse<=2.50
-        # 7) acc=82.3583%  circle=(1.00,1.18)  ellipse<=2.00
-        # 8) acc=81.9470%  circle=(1.00,1.26)  ellipse<=2.00
-        # 9) acc=78.4278%  circle=(1.00,1.10)  ellipse<=2.00
 
-        # 粗掃：9 組
-        # grid_lo = [1.00]
-        # grid_hi = [1.10, 1.18, 1.26]  # 圓形上限：大步距
-        # grid_ehi = [2.00, 2.50, 3.00]  # 橢圓上限：大步距
-        # 1) acc=86.0497% circle=(0.92,1.18) ellipse<=2.30
-        # 2) acc=86.0497% circle=(0.94,1.18) ellipse<=2.30
-        # 3) acc=86.0497% circle=(0.95,1.18) ellipse<=2.30
-        # 4) acc=85.6354% circle=(0.92,1.16) ellipse<=2.30
-        # 5) acc=85.6354% circle=(0.92,1.18) ellipse<=2.25
-
-        # grid_lo = [1.00]
-        # grid_hi = [1.08, 1.12, 1.16, 1.20, 1.24, 1.28]  # 圓形上限：大步距
-        # grid_ehi = [1.80, 2.00, 2.20, 2.40, 2.60, 2.80, 3.00]  # 橢圓上限：大步距]
-
-        # 1) acc=87.5686%  circle=(1.00,1.20)  ellipse<=3.00
-        # 2) acc=87.5229%  circle=(1.00,1.20)  ellipse<=2.80
-        # 3) acc=87.3857%  circle=(1.00,1.20)  ellipse<=2.60
-        # 4) acc=87.2029%  circle=(1.00,1.24)  ellipse<=3.00
-        # 5) acc=87.1572%  circle=(1.00,1.24)  ellipse<=2.80
-        # 6) acc=87.1115%  circle=(1.00,1.20)  ellipse<=2.40
-        # 7) acc=87.0201%  circle=(1.00,1.24)  ellipse<=2.60
-        # 8) acc=86.8373%  circle=(1.00,1.16)  ellipse<=3.00
-        # 9) acc=86.7916%  circle=(1.00,1.16)  ellipse<=2.80
-        # 10) acc=86.7459%  circle=(1.00,1.24)  ellipse<=2.40
         grid_lo = [1.00]
-        grid_hi = [1.16, 1.20, 1.24]  # HI 只抓三個
-        grid_ehi = [2.60, 3.20, 3.80]  # EHI 三個點，涵蓋 >3 的高值
+        grid_hi = [1.10, 1.15, 1.20, 1.25]
+        grid_ehi = [2.0, 2.5, 3.0, 3.5]
         # === Top 10 (coarse) ===
         # 1) acc=87.6143%  circle=(1.00,1.20)  ellipse<=3.80
         # 2) acc=87.2486%  circle=(1.00,1.24)  ellipse<=3.80
@@ -502,55 +447,3 @@ if __name__ == "__main__":
         _set_shape_thresholds(best_lo, best_hi, best_ehi)
         print(f"\n[FINAL] 使用最佳組合 circle=({best_lo},{best_hi}), ellipse<={best_ehi} 寫入報表")
         _ = main(excel, root, start, end, report, write_report=True)
-
-
-
-    # （可選）依照蒐集到的分佈自動給出建議門檻，並再跑一次驗證
-    # 若暫時只想看分佈，不要再跑第二次，直接註解掉以下區塊即可。
-    import numpy as np
-    import pandas as pd
-    import app.utils.shape_color_utils as scu
-
-    logs = getattr(scu, "get_ratio_log", lambda: [])()
-    if logs:
-        df_r = pd.DataFrame(logs)
-        circ = df_r.loc[df_r["exp"] == "圓形",  "ratio"].astype(float).values
-        elli = df_r.loc[df_r["exp"] == "橢圓形","ratio"].astype(float).values
-        othr = df_r.loc[df_r["exp"] == "其他",  "ratio"].astype(float).values
-
-        def find_best_threshold(pos, neg):
-            cands = np.unique(np.concatenate([pos, neg]))
-            best_t, best_err = None, 10**9
-            for t in cands:
-                err = (pos > t).sum() + (neg <= t).sum()
-                if err < best_err:
-                    best_t, best_err = float(t), int(err)
-            return best_t, best_err
-
-        if len(circ) and len(elli):
-            t_hi, err_hi = find_best_threshold(circ, elli)
-            print(f"[Suggested] CIRCLE_HI ≈ {t_hi:.3f} (min error 圓 vs 橢)")
-        else:
-            t_hi = None
-
-        if len(elli) and len(othr):
-            t_ehi, err_ehi = find_best_threshold(elli, othr)
-            print(f"[Suggested] ELLIPSE_HI ≈ {t_ehi:.3f} (min error 橢 vs 其他)")
-        else:
-            t_ehi = None
-
-        # （可選）再跑一次驗證新門檻
-        if t_hi and t_ehi:
-            # 建議保留基本間隔：EHI 至少高於 HI 一段（例如 0.40）
-            margin = 0.40
-            if t_ehi < t_hi + margin:
-                t_ehi = round(t_hi + margin, 2)
-                print(f"[Guard] Raise ELLIPSE_HI to {t_ehi:.2f} to keep margin {margin:.2f}")
-
-            # 清空上一輪的 ratio log，避免混入前次資料（你的 shape_color_utils 裡可用 RATIO_LOG.clear()）
-            if hasattr(scu, "RATIO_LOG"):
-                scu.RATIO_LOG.clear()
-
-            _set_shape_thresholds(1.00, float(t_hi), float(t_ehi))
-            acc2 = main(excel, root, start, end, report, write_report=False)
-            print(f"[RE-RUN] shape acc (suggested thresholds) = {acc2:.4%}")
