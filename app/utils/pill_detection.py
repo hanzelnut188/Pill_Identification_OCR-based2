@@ -14,11 +14,11 @@ from app.utils.ocr_utils import recognize_with_openocr
 from app.utils.shape_color_utils import (
     rotate_image_by_angle,
     enhance_contrast,
-    # desaturate_image,
-    # enhance_for_blur,
-    # extract_dominant_colors_by_ratio,
-    get_basic_color_name,
-    get_dominant_colors,
+    desaturate_image,
+    enhance_for_blur,
+    extract_dominant_colors_by_ratio,
+    # get_basic_color_name,
+    # get_dominant_colors,
     detect_shape_from_image
 )
 from app.utils.logging_utils import log_mem
@@ -166,21 +166,21 @@ def process_image(img_path: str):
 
     # === 外型、顏色分析（直接用裁切圖，不去背） ===
     shape, _ = detect_shape_from_image(cropped, cropped, expected_shape=None)
-    # colors = extract_dominant_colors_by_ratio(cropped)
-    rgb_colors, hex_colors = get_dominant_colors(cropped, k=3, min_ratio=0.30)
-    rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
-    basic_names = []
-    hsv_values = []
-    for rgb in rgb_colors_int:
-        bgr = np.uint8([[rgb[::-1]]])
-        h_raw, s, v = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)[0][0]
-        h_deg = h_raw * 2
-        hsv_values.append((h_deg, s, v))
-
-        cname = get_basic_color_name(rgb)
-        basic_names.append(cname)
-
-    colors = list(dict.fromkeys(basic_names))
+    colors = extract_dominant_colors_by_ratio(cropped)
+    # rgb_colors, hex_colors = get_dominant_colors(cropped, k=3, min_ratio=0.30)
+    # rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
+    # basic_names = []
+    # hsv_values = []
+    # for rgb in rgb_colors_int:
+    #     bgr = np.uint8([[rgb[::-1]]])
+    #     h_raw, s, v = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)[0][0]
+    #     h_deg = h_raw * 2
+    #     hsv_values.append((h_deg, s, v))
+    #
+    #     cname = get_basic_color_name(rgb)
+    #     basic_names.append(cname)
+    #
+    # colors = list(dict.fromkeys(basic_names))
     # === 多版本 OCR 辨識 ===
     image_versions = generate_image_versions(cropped)
     best_texts, best_name, best_score = get_best_ocr_texts(

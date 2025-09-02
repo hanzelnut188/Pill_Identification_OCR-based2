@@ -75,19 +75,19 @@ def match_ocr_to_front_back_by_permuted_ocr(ocr_texts, df, threshold=0.8):
     # === 判斷是否達門檻 ===
     result = {}
     if best_front["score"] >= threshold:
-        # print("⭐ 最佳正面比對結果：", best_front["match"], f"(score={best_front['score']:.3f})")#註解SSS
+        # print("最佳正面比對結果：", best_front["match"], f"(score={best_front['score']:.3f})")
         result["front"] = best_front
     if best_back["score"] >= threshold:
-        # print("⭐ 最佳背面比對結果：", best_back["match"], f"(score={best_back['score']:.3f})")#註解SSS
+        # print("最佳背面比對結果：", best_back["match"], f"(score={best_back['score']:.3f})")
         result["back"] = best_back
 
     # === 不達門檻時，取分數最高的結果 ===
     if not result:
         if best_front["score"] >= 0.5:
-            # print("⚠️ 沒有達門檻，但採用最接近的 FRONT 結果")#註解SSS
+            # print("⚠沒有達門檻，但採用最接近的 FRONT 結果")
             result["front"] = best_front
         elif best_back["score"] >= 0.5:
-            # print("⚠️ 沒有達門檻，但採用最接近的 BACK 結果")#註解SSS
+            # print("⚠沒有達門檻，但採用最接近的 BACK 結果")
             result["back"] = best_back
 
     return result if result else None
