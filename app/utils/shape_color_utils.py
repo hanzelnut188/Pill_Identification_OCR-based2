@@ -1,8 +1,8 @@
 from collections import Counter
 
 import cv2
-import numpy as np
-from sklearn.cluster import KMeans
+# import numpy as np
+# from sklearn.cluster import KMeans
 
 
 def rotate_image_by_angle(image, angle):
