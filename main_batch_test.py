@@ -34,10 +34,10 @@ import app.utils.pill_detection as P  # gives access to generate_image_versions,
 # Excel with ground-truth
 DEFAULT_EXCEL = Path("data/TESTData.xlsx")
 # Root that contains subfolders per drug (named by 學名, “/” replaced by space)
-DEFAULT_IMAGES_ROOT = Path(r"C:\Users\92102\OneDrive - NTHU\桌面\大三下\畢業專題\drug_photos")
+DEFAULT_IMAGES_ROOT = Path("data/drug_photos")
 # Evaluation range (用量排序)
 DEFAULT_START = 1
-DEFAULT_END = 402
+DEFAULT_END = 1
 # Where to write the summary workbook
 DEFAULT_REPORT_XLSX = Path("reports/藥物辨識成功率總表.xlsx")
 DEFAULT_REPORT_XLSX.parent.mkdir(parents=True, exist_ok=True)
