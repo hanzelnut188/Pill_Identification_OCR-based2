@@ -111,6 +111,7 @@ def register_routes(app, data_status):
         import json
 
         info = {
+            "color_counts": getattr(app, 'color_counts', {}),
             "status": "running",
             "cwd": os.getcwd(),
             "template_folder": app.template_folder,
@@ -183,6 +184,14 @@ def register_routes(app, data_status):
         </body>
         </html>
         """
+
+    @app.route("/api/color-stats")
+    def api_color_stats():
+        buckets = ["白色", "透明", "黑色", "棕色", "紅色", "橘色", "皮膚色", "黃色", "綠色", "藍色", "紫色", "粉紅色",
+                   "灰色"]
+        counts = getattr(app, "color_counts", {})
+        result = {c: int(counts.get(c, 0)) for c in buckets}
+        return jsonify({"counts": result, "total_colors": len(buckets)})
 
     @app.route("/upload", methods=["POST"])
     def upload_image():
@@ -263,6 +272,9 @@ def register_routes(app, data_status):
         })
 
     # print("✓ Routes registered successfully")
+    from app.utils.matcher import match_ocr_to_front_back_by_permuted_ocr
+    MIN_TOP1_ACCEPT = 0.30  # Top-1 分數低於此值 → 請重拍
+    HARD_THRESHOLD = 0.80  # 正常門檻
 
     @app.route("/match", methods=["POST"])
     def match_drug():
@@ -282,22 +294,30 @@ def register_routes(app, data_status):
             # print("🟡 [MATCH] 開始篩選候選藥物")
             # 尋找候選藥物
             candidates = set()
-
-            # 根據顏色篩選
+            # --- 顏色交集 ---
+            color_sets = []
             for color in colors:
-                print(f"    - 顏色篩選：{color} ➜ {len(color_dict.get(color, []))} 筆")
-                candidates |= set(color_dict.get(color, []))
+                ids = set(color_dict.get(color, []))
+                print(f"    - 顏色篩選：{color} ➜ {len(ids)} 筆")
+                color_sets.append(ids)
 
-            # 根據形狀篩選
+            if color_sets:
+                candidates = set.intersection(*color_sets)
+                print(f"    ✅ 顏色交集後 ➜ {len(candidates)} 筆")
+            else:
+                candidates = set()
+
+            # --- 外型交集 ---
             if shape:
-                before_shape = len(candidates)  # 之後可刪
-                candidates &= set(shape_dict.get(shape, []))
-                print(f"    - 外型交集：{shape} ➜ 從 {before_shape} 筆減為 {len(candidates)} 筆")
+                before_shape = len(candidates)
+                shape_ids = set(shape_dict.get(shape, []))
+                candidates &= shape_ids
+                print(f"    ✅ 外型交集：{shape} ➜ 從 {before_shape} 筆減為 {len(candidates)} 筆")
+
+            # === 無候選處理 ===
             if not candidates:
                 print("🔴 [MATCH] 沒有符合的候選藥物")
                 return jsonify({"error": "找不到符合顏色與外型的藥品"}), 404
-
-            print("[DEBUG] STEP 3 - 顏色候選數量", len(candidates))
 
             # 篩選數據
             df_sub = df[df["用量排序"].isin(candidates)] if "用量排序" in df.columns else df
@@ -331,14 +351,53 @@ def register_routes(app, data_status):
                 return jsonify({"candidates": results})
             # print("[DEBUG] STEP 4 - Shape", shape)
             # 進行 OCR 比對 - 這個函數需要你實作或匯入
-            try:
-                match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub)
-                # 暫時的替代方案
-                print(f"🟡 [MATCH] 有文字，要進行比對 ➜ {texts}")
-                # match_result = {"front": {"row": df_sub.iloc[0] if not df_sub.empty else None}}
-            except NameError:
-                return jsonify({"error": "OCR 比對功能未實作"}), 500
+            # === 有文字：先用正常門檻比對 ===
+            print(f"🟡 [MATCH] 有文字，要進行比對 ➜ {texts}")
+            match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub, threshold=HARD_THRESHOLD)
 
+            # === 門檻沒過：降門檻取 Top-1 回傳（low_confidence） ===
+            if not match_result:
+                print("🟠 [MATCH] 門檻未通過，啟用 Top-1 回傳（low_confidence）")
+                fallback = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub, threshold=0.0)
+
+                # 從 front/back 取分數最高者
+                best, best_side = None, None
+                if fallback:
+                    for side in ("front", "back"):
+                        if side in fallback and fallback[side].get("row") is not None:
+                            if (best is None) or (fallback[side]["score"] > best["score"]):
+                                best = fallback[side];
+                                best_side = side
+
+                # 若有 Top-1 且分數尚可 → 以低信心單一結果回傳
+                if best and best["score"] >= MIN_TOP1_ACCEPT:
+                    row = best["row"]
+                    if isinstance(row, pd.Series):
+                        row = row.to_dict()
+
+                    picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
+                    picture_base64 = ""
+                    if os.path.exists(picture_path):
+                        with open(picture_path, "rb") as f:
+                            picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+
+                    return jsonify({
+                        "name": safe_get(row, "學名"),
+                        "symptoms": safe_get(row, "適應症"),
+                        "precautions": safe_get(row, "用藥指示與警語"),
+                        "side_effects": safe_get(row, "副作用"),
+                        "drug_image": picture_base64,
+                        "score": round(best["score"], 3),
+                        "side": best_side,
+                        "low_confidence": True
+                    }), 200
+
+                # Top-1 也太低 → 請重拍
+                return jsonify({
+                    "error": "影像過於模糊或光線不足，建議重拍（請讓藥面填滿畫面、避免反光、對焦清晰）。",
+                    "need_retake": True
+                }), 422
+            # === 正常門檻有結果：走原本路徑 ===
             front_row = match_result.get("front", {}).get("row")
             back_row = match_result.get("back", {}).get("row")
 

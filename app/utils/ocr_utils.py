@@ -34,6 +34,7 @@ def recognize_with_openocr(img, name="default", min_score=0.8, ocr_engine=None):
             for r in valid if r["transcription"].strip()
         ]
         avg_score = sum(r["score"] for r in valid) / len(valid) if valid else 0.0
+        # print(f"[{name}] 📝 OCR 結果：{texts} (Avg Score: {avg_score:.2f})")
         return texts, avg_score
     except Exception as e:
         print(f"[{name}] ⚠️ JSON 解析失敗：{e}")

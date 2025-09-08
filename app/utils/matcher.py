@@ -63,12 +63,14 @@ def match_ocr_to_front_back_by_permuted_ocr(ocr_texts, df, threshold=0.8):
             # 比對 F
             if front_text:
                 score_f = lcs_score(combined_ocr, front_text)
+                print(f"[DEBUG-F] 比對 {combined_ocr} ↔ {front_text} ➜ score = {score_f:.3f}")
                 if score_f > best_front["score"]:
                     best_front.update({"score": score_f, "text": combined_ocr, "match": front_text, "row": row})
 
             # 比對 B
             if back_text:
                 score_b = lcs_score(combined_ocr, back_text)
+                print(f"[DEBUG-B] 比對 {combined_ocr} ↔ {back_text} ➜ score = {score_b:.3f}")
                 if score_b > best_back["score"]:
                     best_back.update({"score": score_b, "text": combined_ocr, "match": back_text, "row": row})
 
