@@ -41,6 +41,7 @@ DEFAULT_END = 402
 # Where to write the summary workbook
 DEFAULT_REPORT_XLSX = Path("reports/藥物辨識成功率總表.xlsx")
 DEFAULT_REPORT_XLSX.parent.mkdir(parents=True, exist_ok=True)
+PRINT_COLOR_ERRORS = True  # 途中即時印出顏色誤判明細
 
 
 # ------------------------------------------------------------
@@ -79,8 +80,6 @@ def _tokens_match(recognized_str: str, tokens):
     if not tokens:
         return False
     return all(tok in recognized_str for tok in tokens)
-
-
 
 
 def _to_color_set_exact(colors):
@@ -214,6 +213,10 @@ def main(
     yolo_total = 0
     yolo_success = 0
 
+    # === NEW: 顏色誤判收集 ===
+    color_errors = []  # 逐張錯誤清單
+    color_confusion = defaultdict(int)  # (expected_key, predicted_key) → 次數
+
     per_drug_stats = defaultdict(lambda: {"total": 0, "success": 0})
     missing_folders = []
     t0 = time.perf_counter()
@@ -237,7 +240,6 @@ def main(
         f_tokens, b_tokens, none_expected = _norm_expected_text_tokens(exp_text)
 
         exp_shape = str(row.get("形狀", "")).strip()
-
 
         for img_path in imgs:
             total_images += 1
@@ -267,6 +269,49 @@ def main(
             exp_color_set = _parse_expected_colors_exact(row.get("顏色", ""))  # 你的欄名依實際為準
             is_color_correct = (exp_color_set and pred_color_set == exp_color_set)
 
+            ###以下可刪###
+            # Color correctness（嚴格集合）
+
+            # === 顏色錯誤：記錄 + （可選）即時列印 ===
+            if exp_color_set and (pred_color_set != exp_color_set):
+                # 原樣（保留順序）字串，便於人眼比對
+                exp_list_raw = [p.strip() for p in str(row.get("顏色", "")).split("|") if p.strip()]
+                pred_list_raw = out["colors"] or []
+
+                # 集合差異（缺少 / 多出）
+                missing = sorted(list(exp_color_set - pred_color_set))  # 期望有但未預測
+                extra = sorted(list(pred_color_set - exp_color_set))  # 多預測出來
+
+                # 收進列表（若你有 color_errors / color_confusion）
+                try:
+                    color_errors.append({
+                        "用量排序": usage_order,
+                        "學名": raw_name,
+                        "圖片": str(img_path),
+                        "期望顏色": "|".join(exp_list_raw) if exp_list_raw else "",
+                        "預測顏色": "|".join(pred_list_raw) if pred_list_raw else "",
+                        "缺少": "|".join(missing),
+                        "多出": "|".join(extra),
+                    })
+                    exp_key = "|".join(sorted(exp_color_set)) if exp_color_set else "∅"
+                    pred_key = "|".join(sorted(pred_color_set)) if pred_color_set else "∅"
+                    color_confusion[(exp_key, pred_key)] += 1
+                except NameError:
+                    # 若你尚未宣告 color_errors/color_confusion，也不會噴錯
+                    pass
+
+                # === 即時列印（可用開關關閉）===
+                if PRINT_COLOR_ERRORS:
+                    print(f"\n[COLOR ❌] [{usage_order}] {raw_name}")
+                    print(f"  期望：{'|'.join(exp_list_raw) if exp_list_raw else '∅'}")
+                    print(f"  預測：{'|'.join(pred_list_raw) if pred_list_raw else '∅'}")
+                    if missing:
+                        print(f"  缺少：{', '.join(missing)}")
+                    if extra:
+                        print(f"  多出：{', '.join(extra)}")
+                    print(f"  圖片：{img_path}")
+
+                ###以上可刪###
             if is_text_correct:
                 text_success_total += 1
                 total_success += 1  # overall metric uses t ext as primary
@@ -327,6 +372,38 @@ def main(
     print(f" - 成功偵測圖片數：{roboflow_success} / {roboflow_total}")
     print(f" - 偵測成功率：{yolo_rate:.2%}" if roboflow_total else " - 偵測成功率：N/A")
 
+    # 以下顏色辨識可刪##
+    # === NEW: 列印部分誤判樣本 & 匯出 Excel ===
+    if color_errors:
+        print("\n🎨 顏色誤判樣本（最多列出前 30 筆）：")
+        for e in color_errors[:30]:
+            print(f"  [{e['用量排序']}] {e['學名']}")
+            print(f"    期望：{e['期望顏色']} | 預測：{e['預測顏色']} | 缺少：{e['缺少']} | 多出：{e['多出']}")
+
+        # 轉成 DataFrame
+        err_df = pd.DataFrame(color_errors)
+        # 混淆表
+        cf_rows = [
+            {"expected": ek, "predicted": pk, "count": v}
+            for (ek, pk), v in color_confusion.items()
+        ]
+        cf_df = pd.DataFrame(cf_rows)
+        if not cf_df.empty:
+            cf_pivot = cf_df.pivot(index="expected", columns="predicted", values="count").fillna(0).astype(int)
+        else:
+            cf_pivot = pd.DataFrame()
+
+        # 輸出到 reports/color_errors.xlsx
+        os.makedirs("reports", exist_ok=True)
+        out_xlsx = Path("reports/color_errors.xlsx")
+        with pd.ExcelWriter(out_xlsx, engine="openpyxl") as writer:
+            err_df.to_excel(writer, sheet_name="errors", index=False)
+            if not cf_pivot.empty:
+                cf_pivot.to_excel(writer, sheet_name="confusion")
+        print(f"📝 顏色誤判已輸出：{out_xlsx}")
+    else:
+        print("\n🎨 顏色誤判：無（全部顏色都符合期望）。")
+    # 以上顏色辨識可刪##
     # print("📦 各藥品辨識情況：")
     # for drug, stats in per_drug_stats.items():
     #     print(f"- {drug}: {stats['success']} / {stats['total']} 成功")
@@ -446,7 +523,7 @@ if __name__ == "__main__":
     _set_shape_thresholds(1.00, 1.20, 3.80)
     if not DO_SEARCH:
         # 單次跑：用目前預設門檻
-        acc = main(excel, root, start, end, report,write_report=True)  # 或 main(..., write_report=True)
+        acc = main(excel, root, start, end, report, write_report=True)  # 或 main(..., write_report=True)
         print(f"[RUN] shape accuracy = {acc:.4%}")
     else:
 

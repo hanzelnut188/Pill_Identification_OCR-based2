@@ -448,7 +448,7 @@ def _fallback_rembg_crop(input_img):
             print("[REMBG] crop is empty")
             return None
 
-        print(f"[REMBG] crop success: ({x0},{y0})-({x1},{y1})")
+        # print(f"[REMBG] crop success: ({x0},{y0})-({x1},{y1})")
         return cropped
 
     except Exception as e:
@@ -510,7 +510,7 @@ def process_image(img_path: str):
         if boxes_lo is not None and boxes_lo.xyxy.shape[0] > 0:
             cropped = _pick_crop_from_boxes(input_img, boxes_lo)
         else:
-            print("[PROC] detection failed — try REMBG fallback…")
+            # print("[PROC] detection failed — try REMBG fallback…")
             cropped = _fallback_rembg_crop(input_img)
 
             if cropped is None:
