@@ -143,7 +143,7 @@ def _run_single_image(img_path: Path, det_model, exp_shape=None, enable_fallback
         yolo_ok = True
     else:
         # 降低 conf 再試一次
-        print("[BATCH] no box at conf=0.25, try conf=0.10…")
+        # print("[BATCH] no box at conf=0.25, try conf=0.10…")
         res_lo = det_model.predict(
             source=img_rgb, imgsz=640, conf=0.10, iou=0.7,
             device="cpu", verbose=False, half=fp16
@@ -154,7 +154,7 @@ def _run_single_image(img_path: Path, det_model, exp_shape=None, enable_fallback
             yolo_ok = True
         elif enable_fallback:
             # === REMBG fallback ===
-            print("[BATCH] detection failed — try REMBG fallback…")
+            # print("[BATCH] detection failed — try REMBG fallback…")
             crop_rgb = P._fallback_rembg_crop(img_rgb)
             if crop_rgb is None:
                 print("[BATCH] REMBG fallback failed — skip image.")
