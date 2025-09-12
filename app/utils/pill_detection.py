@@ -561,3 +561,4 @@ def process_image(img_path: str):
     }
 # pill_detection.py  — 無 rembg 版本（YOLO → 顏色/外型 → OCR）
 # 以上SHAN
+

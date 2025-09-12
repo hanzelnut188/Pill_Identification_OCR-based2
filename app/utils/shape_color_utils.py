@@ -1,4 +1,4 @@
-# 以下SHAN版###
+# # 以下SHAN版###
 from collections import Counter
 
 import cv2
@@ -1176,3 +1176,4 @@ ratios_list = []
 #         print(f"❗ detect_shape_three_classes 發生錯誤：{e}")
 #
 #     return shape
+

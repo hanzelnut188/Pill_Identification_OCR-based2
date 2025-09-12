@@ -34,7 +34,7 @@ import app.utils.pill_detection as P  # gives access to generate_image_versions,
 # Excel with ground-truth
 DEFAULT_EXCEL = Path("data/TESTData.xlsx")
 # Root that contains subfolders per drug (named by 學名, “/” replaced by space)
-DEFAULT_IMAGES_ROOT = Path("data/drug_photos")
+DEFAULT_IMAGES_ROOT = Path(r"C:\Users\92102\OneDrive - NTHU\桌面\大三下\畢業專題\drug_photos")
 # Evaluation range (用量排序)
 DEFAULT_START = 1
 DEFAULT_END = 1
@@ -523,7 +523,7 @@ if __name__ == "__main__":
     _set_shape_thresholds(1.00, 1.20, 3.80)
     if not DO_SEARCH:
         # 單次跑：用目前預設門檻
-        acc = main(excel, root, start, end, report, write_report=True)  # 或 main(..., write_report=True)
+        acc = main(excel, root, start, end, report, write_report=False)  # 或 main(..., write_report=True)
         print(f"[RUN] shape accuracy = {acc:.4%}")
     else:
 
