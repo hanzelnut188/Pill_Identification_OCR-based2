@@ -262,6 +262,7 @@ def process_image(img_path: str):
 
     if boxes is not None and boxes.xyxy.shape[0] > 0:
         cropped = _pick_crop_from_boxes(input_img, boxes)
+        print("YOLO 0.25")
         det_src = "yolo_conf_0.25"
     else:
 
@@ -277,6 +278,7 @@ def process_image(img_path: str):
         boxes_lo = res_lo.boxes
         if boxes_lo is not None and boxes_lo.xyxy.shape[0] > 0:
             cropped = _pick_crop_from_boxes(input_img, boxes_lo)
+            print("YOLO 0.10")
             det_src = "yolo_conf_0.10"
         else:
             # print("[PROC] detection failed — try REMBG fallback…")
@@ -285,7 +287,7 @@ def process_image(img_path: str):
                 # print("[PROC] REMBG fallback failed — return early.")
                 return {"error": "藥品擷取失敗"}
             det_src = "rembg"
-
+            print("REMBG fallback")
     # === 外型、顏色分析 (直接用裁切圖, 不去背) ===
     shape, _ = detect_shape_from_image(cropped, cropped, expected_shape=None)
 
@@ -300,7 +302,7 @@ def process_image(img_path: str):
     cropped2 = increase_brightness(cropped2, value=20)
     rgb_colors, hex_colors = get_dominant_colors(cropped2, k=3, min_ratio=0.35)
     rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
-    cropped_bgr = cv2.cvtColor(cropped2, cv2.COLOR_RGB2BGR)
+    cropped_bgr = cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
     ok, buffer = cv2.imencode(".jpg", cropped_bgr)
     cropped_b64 = (
         f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
