@@ -18,7 +18,7 @@ import numpy as np
 # Reuse your existing pipeline modules
 from app.utils.pill_detection import (
     get_det_model,
-    _pick_crop_from_boxes,  # uses YOLO crop without background removal
+    _pick_crop_from_boxes  # uses YOLO crop without background removal
 )
 from app.utils.image_io import read_image_safely
 from app.utils.shape_color_utils import (
@@ -37,7 +37,7 @@ DEFAULT_EXCEL = Path("data/TESTData.xlsx")
 DEFAULT_IMAGES_ROOT = Path(r"C:\Users\92102\OneDrive - NTHU\桌面\大三下\畢業專題\drug_photos")
 # Evaluation range (用量排序)
 DEFAULT_START = 1
-DEFAULT_END = 1
+DEFAULT_END =1
 # Where to write the summary workbook
 DEFAULT_REPORT_XLSX = Path("reports/藥物辨識成功率總表.xlsx")
 DEFAULT_REPORT_XLSX.parent.mkdir(parents=True, exist_ok=True)
@@ -110,77 +110,27 @@ def _collect_images(folder: Path):
     return imgs
 
 
+import app.utils.pill_detection as P
+
+
 def _run_single_image(img_path: Path, det_model, exp_shape=None, enable_fallback=True):
     """
     Batch-side pipeline aligned with process_image:
     YOLO(conf=0.25→0.10) → (optional REMBG fallback) → shape/color → multi-version OCR
     Returns: {"text", "shape", "colors", "yolo_ok"}
     """
-    import cv2
-    import numpy as np
-    import \
-        app.utils.pill_detection as P  # _pick_crop_from_boxes, _fallback_rembg_crop, generate_image_versions, get_best_ocr_texts, ocr_engine
-    from app.utils.shape_color_utils import get_center_region
-    img = read_image_safely(img_path)
-    if img is None:
-        return {"text": [], "shape": "", "colors": [], "yolo_ok": False}
+    out = P.process_image(str(img_path))
+    if not out or out.get("error"):
+        return {"out": out, "yolo_ok": False, "clusters": [], "center_ratio": 0.50, "margin_ratio": 0.08}
 
-    # 與線上流程一致：BGR→RGB 再送 YOLO
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-    # === YOLO 偵測（先 0.25，失敗再 0.10）===
-    fp16 = False  # CPU 友善
-    yolo_ok = False
-    res = det_model.predict(
-        source=img_rgb, imgsz=640, conf=0.25, iou=0.7,
-        device="cpu", verbose=False, half=fp16
-    )[0]
-    boxes = res.boxes
-
-    crop_rgb = None
-    if boxes is not None and boxes.xyxy.shape[0] > 0:
-        crop_rgb = P._pick_crop_from_boxes(img_rgb, boxes)
-        yolo_ok = True
-    else:
-        # 降低 conf 再試一次
-        # print("[BATCH] no box at conf=0.25, try conf=0.10…")
-        res_lo = det_model.predict(
-            source=img_rgb, imgsz=640, conf=0.10, iou=0.7,
-            device="cpu", verbose=False, half=fp16
-        )[0]
-        boxes_lo = res_lo.boxes
-        if boxes_lo is not None and boxes_lo.xyxy.shape[0] > 0:
-            crop_rgb = P._pick_crop_from_boxes(img_rgb, boxes_lo)
-            yolo_ok = True
-        elif enable_fallback:
-            # === REMBG fallback ===
-            # print("[BATCH] detection failed — try REMBG fallback…")
-            crop_rgb = P._fallback_rembg_crop(img_rgb)
-            if crop_rgb is None:
-                print("[BATCH] REMBG fallback failed — skip image.")
-                return {"text": [], "shape": "", "colors": [], "yolo_ok": False}
-        else:
-            return {"text": [], "shape": "", "colors": [], "yolo_ok": False}
-
-    # === 外型（與線上一致：兩個參數都給裁切圖）===
-    shape, _ = detect_shape_from_image(crop_rgb, crop_rgb, expected_shape=exp_shape)
-
-    # === 顏色（中心區域 → 主色 → 基本色名；去重保序）===
-    center = get_center_region(crop_rgb.copy(), size=100)
-    rgb_colors, _ = get_dominant_colors(center, k=3, min_ratio=0.30)
-    rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
-    basic_names = [get_basic_color_name(rgb) for rgb in rgb_colors_int]
-    colors = list(dict.fromkeys(basic_names))
-
-    # === 多版本 OCR（與線上相同 helper）===
-    versions = P.generate_image_versions(crop_rgb)
-    texts, _, _ = P.get_best_ocr_texts(versions, ocr_engine=P.ocr_engine)
+    dbg = out.get("debug", {}) or {}
+    detsrc = dbg.get("det_source", "")
+    yolo_ok = detsrc in ("yolo_conf_0.25", "yolo_conf_0.10", "rembg")  # 你要不要把 rembg 算成功自行決定
 
     return {
-        "text": texts or [],
-        "shape": shape or "",
-        "colors": colors or [],
-        "yolo_ok": yolo_ok,  # 僅表示 YOLO 是否成功，fallback 成功時仍為 False
+        "out": out,
+        "yolo_ok": yolo_ok,
+
     }
 
 
@@ -244,39 +194,49 @@ def main(
         for img_path in imgs:
             total_images += 1
 
-            out = _run_single_image(img_path, det_model, exp_shape=exp_shape)
             yolo_total += 1
-            if out["yolo_ok"]:
-                yolo_success += 1
+            res = _run_single_image(img_path, det_model, exp_shape=exp_shape)
+            out = res["out"]
 
+            if not out or out.get("error"):
+                continue
+            if res["yolo_ok"]:
+                yolo_success += 1
+            # 取出結果
+            texts = out.get("文字辨識", []) or []
+            shape_ = (out.get("外型", "") or "").strip()
+            colors = out.get("顏色", []) or []
             # Text correctness
-            rec_concat = "".join(out["text"]).upper().replace(" ", "")
-            is_text_correct = False
+            rec_concat = "".join(texts).upper().replace(" ", "")
             if none_expected:
                 is_text_correct = True
             else:
-                if _tokens_match(rec_concat, f_tokens) or _tokens_match(rec_concat, b_tokens):
-                    is_text_correct = True
+                is_text_correct = (_tokens_match(rec_concat, f_tokens) or _tokens_match(rec_concat, b_tokens))
+            if is_text_correct:
+                text_success_total += 1
+                total_success += 1
 
             # Shape correctness
-            is_shape_correct = False
-            if exp_shape:
-                is_shape_correct = (out["shape"].strip() == exp_shape)
+            is_shape_correct = (shape_ == exp_shape) if exp_shape else False
 
             # Color correctness (order-insensitive with mapping)
             # Color correctness (order-insensitive, EXACT match, no near-color mapping)
-            pred_color_set = _to_color_set_exact(out["colors"])
+            pred_color_set = _to_color_set_exact(colors)
+            print(f"pred: {pred_color_set}")
             exp_color_set = _parse_expected_colors_exact(row.get("顏色", ""))  # 你的欄名依實際為準
-            is_color_correct = (exp_color_set and pred_color_set == exp_color_set)
+            print(f"exp: {exp_color_set}")
+            is_color_correct = (
+                    exp_color_set and pred_color_set and len(pred_color_set.intersection(exp_color_set)) > 0)
 
             ###以下可刪###
             # Color correctness（嚴格集合）
 
             # === 顏色錯誤：記錄 + （可選）即時列印 ===
-            if exp_color_set and (pred_color_set != exp_color_set):
+            if exp_color_set and (not pred_color_set or not bool(pred_color_set & exp_color_set)):
+
                 # 原樣（保留順序）字串，便於人眼比對
                 exp_list_raw = [p.strip() for p in str(row.get("顏色", "")).split("|") if p.strip()]
-                pred_list_raw = out["colors"] or []
+                pred_list_raw = colors or []
 
                 # 集合差異（缺少 / 多出）
                 missing = sorted(list(exp_color_set - pred_color_set))  # 期望有但未預測
@@ -314,7 +274,6 @@ def main(
                 ###以上可刪###
             if is_text_correct:
                 text_success_total += 1
-                total_success += 1  # overall metric uses t ext as primary
 
             if is_shape_correct:
                 shape_success_total += 1

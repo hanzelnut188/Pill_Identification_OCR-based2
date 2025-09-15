@@ -1,4 +1,44 @@
-# 以下SHAN
+# # === 中央區域顏色分析（比例切 + 內縮） ===
+# CENTER_RATIO = 0.6  # 取短邊的 50% 當中心方塊；可試 0.40~0.60
+# MARGIN_RATIO = 0.06  # 先把整個裁切圖四邊內縮 6%，避免邊緣背景
+#
+# h, w = cropped.shape[:2]
+# # 先做「內縮框」以避開邊緣雜訊
+# mx = int(w * MARGIN_RATIO)
+# my = int(h * MARGIN_RATIO)
+# ix1, iy1 = mx, my
+# ix2, iy2 = max(w - mx, ix1 + 1), max(h - my, iy1 + 1)
+# inner = cropped[iy1:iy2, ix1:ix2].copy()
+#
+# # 在「內縮框」內以比例切中心方塊
+# ih, iw = inner.shape[:2]
+# side = max(1, int(min(iw, ih) * CENTER_RATIO))
+# cx, cy = iw // 2, ih // 2
+# x1 = max(cx - side // 2, 0)
+# y1 = max(cy - side // 2, 0)
+# x2 = min(cx + side // 2, iw)
+# y2 = min(cy + side // 2, ih)
+# cropped2 = inner[y1:y2, x1:x2].copy()
+#
+# # --- debug 圖 ---
+# def _img_to_b64(img_rgb):
+#     img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+#     ok, buf = cv2.imencode(".jpg", img_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+#     return f"data:image/jpeg;base64,{base64.b64encode(buf).decode('utf-8')}" if ok else None
+#
+# # 疊框：先畫內縮框，再畫中心方塊（兩層座標）
+# overlay = cropped.copy()
+# # 內縮框（藍色）
+# cv2.rectangle(overlay, (ix1, iy1), (ix2, iy2), (255, 0, 0), 2)
+# # 中心方塊（綠色），要加回內縮偏移量
+# cv2.rectangle(overlay, (ix1 + x1, iy1 + y1), (ix1 + x2, iy1 + y2), (0, 255, 0), 2)
+#
+# center_b64 = _img_to_b64(cropped2)
+# overlay_b64 = _img_to_b64(overlay)
+# cropped_b64 = _img_to_b64(cropped)  # 完整裁切
+#
+# # --- 取得主色（4 值：RGB/HEX/HSV/佔比）---
+# rgb_colors, hex_colors, hsv_values, ratios = _get_colors_ex(cropped2, k=3, min_ratio=0.3)
 # pill_detection.py  — 無 rembg 版本（YOLO → 顏色/外型 → OCR）
 
 import os
@@ -14,12 +54,18 @@ from openocr import OpenOCR
 from app.utils.ocr_utils import recognize_with_openocr
 from app.utils.shape_color_utils import (
     rotate_image_by_angle,
+    enhance_contrast,
+    desaturate_image,
+    enhance_for_blur,
+    # extract_dominant_colors_by_ratio,
     get_basic_color_name,
-    get_dominant_colors,
-    detect_shape_from_image,
 
+    get_dominant_colors,
+    increase_brightness,
     get_center_region,
+    detect_shape_from_image
 )
+from app.utils.logging_utils import log_mem
 
 # ====== 輕量化設定 ======
 # Render 的 CPU 只有 1 核，避免 PyTorch/NumPy 開太多執行緒
@@ -36,25 +82,26 @@ def get_det_model():
     """Lazy-load YOLO 權重，只初始化一次"""
     global _det_model
     if _det_model is None:
+        print("[DET] loading YOLO model…")
         m = YOLO("models/best.pt")
         try:
             m.fuse()
         except Exception:
             pass
         _det_model = m
-
+        print("[DET] model ready")
     return _det_model
 
 
 def generate_image_versions(base_img):
     """產生多個影像增強版本供 OCR 嘗試"""
-    # v1 = enhance_contrast(base_img, 1.5, 1.5, -0.5)
-    # # 減少判斷
+    v1 = enhance_contrast(base_img, 1.5, 1.5, -0.5)
+    # 減少判斷
     # v2 = desaturate_image(v1)
     # v3 = enhance_contrast(base_img, 5.5, 2.0, -1.0)
     # v4 = desaturate_image(v3)
     # v5 = enhance_for_blur(base_img)
-    ## 減少判斷
+    # 減少判斷
     # return [
     #     (base_img, "原圖"),
     #     (v1, "增強1"),
@@ -63,22 +110,16 @@ def generate_image_versions(base_img):
     #     (v4, "去飽和2"),
     #     (v5, "模糊優化"),
     # ]
-
-    # return [
-    #     (base_img, "原圖"),
-    #     (v1, "增強1"),
-    # ]
     return [
         (base_img, "原圖"),
-
+        (v1, "增強去飽和"),
     ]
 
 
 def get_best_ocr_texts(
         image_versions,
         # angles=(0, 45, 90, 135, 180, 225, 270, 315), ocr_engine=None,
-        # angles=(0, 90, 180, 270), ocr_engine=None,
-        angles=(0, 90), ocr_engine=None,
+        angles=(0, 90, 180, 270), ocr_engine=None,
 ):
     version_results = {}
     score_dict = {}
@@ -171,6 +212,7 @@ def _fallback_rembg_crop(input_img):
         print(f"[REMBG] fallback error: {e}")
         return None
 
+
 def _pick_crop_from_boxes(input_img, boxes):
     """從 YOLO boxes 選最佳框並回傳裁切圖（不再去背）"""
     xyxy = boxes.xyxy.cpu().numpy()  # [N,4]
@@ -199,61 +241,71 @@ def process_image(img_path: str):
     YOLO → 裁切 → 顏色/外型 → 多版本 OCR → 回傳
     """
 
+    # === 讀取模型 ===
     det_model = get_det_model()
 
-    # === 讀取圖片 ===
+    # === 讀取圖片 (轉為 RGB) ===
     input_img = read_image_safely(img_path)
-    if input_img is None:
-        return {"error": "無法讀取圖片"}
-    else:
+    if input_img is not None:
         input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2RGB)
-    # === YOLO 偵測（先正常閾值，失敗再降閾值）===
-
+    # 標記偵測來源（預設 unknown）
+    det_src = "unknown"
     res = det_model.predict(
-        source=input_img, imgsz=640, conf=0.25, iou=0.7, device=DEVICE, verbose=False
+        source=input_img,
+        imgsz=640,
+        conf=0.25,
+        iou=0.7,
+        device=DEVICE,
+        verbose=False
     )[0]
     boxes = res.boxes
 
     if boxes is not None and boxes.xyxy.shape[0] > 0:
         cropped = _pick_crop_from_boxes(input_img, boxes)
+        det_src = "yolo_conf_0.25"
     else:
-        print("[PROC] no box, try lower conf=0.10…")
+
         res_lo = det_model.predict(
-            source=input_img, imgsz=640, conf=0.10, iou=0.7, device=DEVICE, verbose=False
+            source=input_img,
+            imgsz=640,
+            conf=0.10,
+            iou=0.7,
+            device=DEVICE,
+            verbose=False
         )[0]
 
         boxes_lo = res_lo.boxes
         if boxes_lo is not None and boxes_lo.xyxy.shape[0] > 0:
             cropped = _pick_crop_from_boxes(input_img, boxes_lo)
+            det_src = "yolo_conf_0.10"
         else:
             # print("[PROC] detection failed — try REMBG fallback…")
             cropped = _fallback_rembg_crop(input_img)
-
             if cropped is None:
-                print("[PROC] REMBG fallback failed — return early.")
+                # print("[PROC] REMBG fallback failed — return early.")
                 return {"error": "藥品擷取失敗"}
-    # === 裁切圖轉 Base64（給前端顯示） ===
-    cropped_bgr = cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
+            det_src = "rembg"
+
+    # === 外型、顏色分析 (直接用裁切圖, 不去背) ===
+    shape, _ = detect_shape_from_image(cropped, cropped, expected_shape=None)
+
+    # === 多版本 OCR 辨識 ===
+    image_versions = generate_image_versions(cropped)
+    best_texts, best_name, best_score = get_best_ocr_texts(
+        image_versions, ocr_engine=ocr_engine
+    )
+
+    # === 中央區域顏色分析 ===
+    cropped2 = get_center_region(cropped.copy(), size=200)
+    cropped2 = increase_brightness(cropped2, value=20)
+    rgb_colors, hex_colors = get_dominant_colors(cropped2, k=3, min_ratio=0.35)
+    rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
+    cropped_bgr = cv2.cvtColor(cropped2, cv2.COLOR_RGB2BGR)
     ok, buffer = cv2.imencode(".jpg", cropped_bgr)
     cropped_b64 = (
         f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
         if ok else None
     )
-
-    # === 外型、顏色分析（直接用裁切圖，不去背） ===
-    shape, _ = detect_shape_from_image(cropped, cropped, expected_shape=None)
-
-
-    # === 多版本 OCR 辨識 ===
-    image_versions = generate_image_versions(cropped)
-
-    best_texts, best_name, best_score = get_best_ocr_texts(
-        image_versions, ocr_engine=ocr_engine
-    )
-    # === 中央區域顏色分析 ===
-    cropped2 = get_center_region(cropped.copy(), size=100)
-    rgb_colors, hex_colors = get_dominant_colors(cropped2, k=3, min_ratio=0.30)
-    rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
 
     basic_names, hsv_values = [], []
     for rgb in rgb_colors_int:
@@ -264,7 +316,7 @@ def process_image(img_path: str):
 
     colors = list(dict.fromkeys(basic_names))
 
-
+    # === 最終結果 ===
     print(f"[PROC] OCR={best_texts}, shape={shape}, colors={colors}, score={best_score:.3f}")
 
     return {
@@ -274,7 +326,7 @@ def process_image(img_path: str):
         "顏色": colors,
         "外型": shape,
         "cropped_image": cropped_b64,
+        "debug": {
+            "det_source": det_src,
+        }
     }
-# pill_detection.py  — 無 rembg 版本（YOLO → 顏色/外型 → OCR）
-# 以上SHAN
-

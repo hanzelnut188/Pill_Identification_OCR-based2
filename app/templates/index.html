@@ -29,6 +29,23 @@
     </div>
     <!-- 顯示辨識後圖片 -->
     <div id="photo-container" style="text-align: center; margin-bottom: 10px;"></div>
+    <!-- 顏色偵測 Debug（中央小塊 + 疊框） -->
+    <div id="debugColorBox" style="display:none; margin:10px auto 16px; max-width:920px;">
+        <h4 style="margin:6px 0 8px;">顏色偵測 Debug</h4>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start;">
+            <div>
+                <div style="font-size:13px; color:#666;">中央小塊 (cropped2)</div>
+                <img id="imgCenterPatch" style="max-width:200px; border:1px solid #666; border-radius:8px;">
+                <div id="txtCenterSize" style="font-size:12px; color:#999; margin-top:4px;"></div>
+            </div>
+            <div>
+                <div style="font-size:13px; color:#666;">疊框標示（綠框）</div>
+                <img id="imgCenterOverlay" style="max-width:260px; border:1px solid #666; border-radius:8px;">
+                <div id="txtCroppedSize" style="font-size:12px; color:#999; margin-top:4px;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- 🔽 自動填入 + 可調整區域 -->
     <div id="result-area">
         <h3>辨識結果</h3>
