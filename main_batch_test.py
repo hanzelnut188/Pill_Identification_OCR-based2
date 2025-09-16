@@ -37,7 +37,7 @@ DEFAULT_EXCEL = Path("data/TESTData.xlsx")
 DEFAULT_IMAGES_ROOT = Path(r"C:\Users\92102\OneDrive - NTHU\桌面\大三下\畢業專題\drug_photos")
 # Evaluation range (用量排序)
 DEFAULT_START = 1
-DEFAULT_END =1
+DEFAULT_END =402
 # Where to write the summary workbook
 DEFAULT_REPORT_XLSX = Path("reports/藥物辨識成功率總表.xlsx")
 DEFAULT_REPORT_XLSX.parent.mkdir(parents=True, exist_ok=True)
@@ -482,7 +482,7 @@ if __name__ == "__main__":
     _set_shape_thresholds(1.00, 1.20, 3.80)
     if not DO_SEARCH:
         # 單次跑：用目前預設門檻
-        acc = main(excel, root, start, end, report, write_report=False)  # 或 main(..., write_report=True)
+        acc = main(excel, root, start, end, report, write_report=True)  # 或 main(..., write_report=True)
         print(f"[RUN] shape accuracy = {acc:.4%}")
     else:
 

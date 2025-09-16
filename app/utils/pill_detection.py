@@ -57,7 +57,6 @@ from app.utils.shape_color_utils import (
     enhance_contrast,
     desaturate_image,
     enhance_for_blur,
-    # extract_dominant_colors_by_ratio,
     get_basic_color_name,
 
     get_dominant_colors,
@@ -65,7 +64,7 @@ from app.utils.shape_color_utils import (
     get_center_region,
     detect_shape_from_image
 )
-from app.utils.logging_utils import log_mem
+
 
 # ====== 輕量化設定 ======
 # Render 的 CPU 只有 1 核，避免 PyTorch/NumPy 開太多執行緒
@@ -118,8 +117,8 @@ def generate_image_versions(base_img):
 
 def get_best_ocr_texts(
         image_versions,
-        # angles=(0, 45, 90, 135, 180, 225, 270, 315), ocr_engine=None,
-        angles=(0, 90, 180, 270), ocr_engine=None,
+        angles=(0, 45, 90, 135, 180, 225, 270, 315), ocr_engine=None,
+        # angles=(0, 90, 180, 270), ocr_engine=None,
 ):
     version_results = {}
     score_dict = {}
@@ -296,12 +295,35 @@ def process_image(img_path: str):
     best_texts, best_name, best_score = get_best_ocr_texts(
         image_versions, ocr_engine=ocr_engine
     )
+    # # === 中央區域顏色分析（比例切 + 內縮） ===
+    CENTER_RATIO = 0.6  # 取短邊的 50% 當中心方塊；可試 0.40~0.60
+    MARGIN_RATIO = 0.06  # 先把整個裁切圖四邊內縮 6%，避免邊緣背景
+
+    h, w = cropped.shape[:2]
+    # 先做「內縮框」以避開邊緣雜訊
+    mx = int(w * MARGIN_RATIO)
+    my = int(h * MARGIN_RATIO)
+    ix1, iy1 = mx, my
+    ix2, iy2 = max(w - mx, ix1 + 1), max(h - my, iy1 + 1)
+    inner = cropped[iy1:iy2, ix1:ix2].copy()
+
+    # 在「內縮框」內以比例切中心方塊
+    ih, iw = inner.shape[:2]
+    side = max(1, int(min(iw, ih) * CENTER_RATIO))
+    cx, cy = iw // 2, ih // 2
+    x1 = max(cx - side // 2, 0)
+    y1 = max(cy - side // 2, 0)
+    x2 = min(cx + side // 2, iw)
+    y2 = min(cy + side // 2, ih)
+    cropped2 = inner[y1:y2, x1:x2].copy()
+
 
     # === 中央區域顏色分析 ===
-    cropped2 = get_center_region(cropped.copy(), size=200)
+    # cropped2 = get_center_region(cropped.copy(), size=200)
     cropped2 = increase_brightness(cropped2, value=20)
     rgb_colors, hex_colors = get_dominant_colors(cropped2, k=3, min_ratio=0.35)
     rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
+
     cropped_bgr = cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
     ok, buffer = cv2.imencode(".jpg", cropped_bgr)
     cropped_b64 = (
