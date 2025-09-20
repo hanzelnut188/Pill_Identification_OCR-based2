@@ -7,10 +7,11 @@ from flask import request, jsonify, render_template
 import base64
 import time
 import shutil
-from app.utils.matcher import match_ocr_to_front_back_by_permuted_ocr
+from app.utils.matcher import  match_top_n_ocr_to_front_back
 import tempfile
 from PIL import Image
 from pillow_heif import register_heif_opener
+from app.utils.matcher import match_ocr_to_front_back_by_permuted_ocr, lcs_score
 
 register_heif_opener()  # ✅ 全域註冊 HEIC 支援
 # 假設這些是從其他模組匯入的變數和函數
@@ -353,10 +354,12 @@ def register_routes(app, data_status):
             # 進行 OCR 比對 - 這個函數需要你實作或匯入
             # === 有文字：先用正常門檻比對 ===
             print(f"🟡 [MATCH] 有文字，要進行比對 ➜ {texts}")
-            match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub, threshold=HARD_THRESHOLD)
+            # match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub, threshold=HARD_THRESHOLD)
+
+            top_matches = match_top_n_ocr_to_front_back(texts, df_sub, threshold=HARD_THRESHOLD, top_n=3)
 
             # === 門檻沒過：降門檻取 Top-1 回傳（low_confidence） ===
-            if not match_result:
+            if not top_matches:
                 print("🟠 [MATCH] 門檻未通過，啟用 Top-1 回傳（low_confidence）")
                 fallback = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub, threshold=0.0)
 
@@ -398,20 +401,13 @@ def register_routes(app, data_status):
                     "need_retake": True
                 }), 422
             # === 正常門檻有結果：走原本路徑 ===
-            front_row = match_result.get("front", {}).get("row")
-            back_row = match_result.get("back", {}).get("row")
+            # === 正常門檻有結果：組成多筆 candidates 回傳 ===
+            results = []
+            for match in top_matches:
+                row = match["row"]
+                if isinstance(row, pd.Series):
+                    row = row.to_dict()
 
-            row = None
-            if isinstance(front_row, pd.Series) and not front_row.empty:
-                row = front_row
-            elif isinstance(back_row, pd.Series) and not back_row.empty:
-                row = back_row
-
-            if isinstance(row, pd.Series):
-                row = row.to_dict()
-
-            if isinstance(row, dict):
-                # 尋找藥物圖片
                 picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
                 picture_base64 = ""
                 if os.path.exists(picture_path):
@@ -420,16 +416,20 @@ def register_routes(app, data_status):
                             picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
                     except Exception as e:
                         print(f"Error reading picture {picture_path}: {e}")
-                print("🟢 [MATCH] 比對完成，準備回傳")
-                return jsonify({
+
+                results.append({
                     "name": safe_get(row, "學名"),
                     "symptoms": safe_get(row, "適應症"),
                     "precautions": safe_get(row, "用藥指示與警語"),
                     "side_effects": safe_get(row, "副作用"),
-                    "drug_image": picture_base64
+                    "drug_image": picture_base64,
+                    "score": round(match["score"], 3),
+                    "match": match["match"],
+                    "side": match["side"]
                 })
 
-            return jsonify({"error": "無法比對藥品"}), 404
+            print(f"🟢 [MATCH] Top-{len(results)} 比對完成，準備回傳")
+            return jsonify({"candidates": results}), 200
 
         except Exception as e:
             import traceback

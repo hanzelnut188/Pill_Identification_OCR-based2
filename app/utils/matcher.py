@@ -63,14 +63,14 @@ def match_ocr_to_front_back_by_permuted_ocr(ocr_texts, df, threshold=0.8):
             # 比對 F
             if front_text:
                 score_f = lcs_score(combined_ocr, front_text)
-                print(f"[DEBUG-F] 比對 {combined_ocr} ↔ {front_text} ➜ score = {score_f:.3f}")
+                # print(f"[DEBUG-F] 比對 {combined_ocr} ↔ {front_text} ➜ score = {score_f:.3f}")
                 if score_f > best_front["score"]:
                     best_front.update({"score": score_f, "text": combined_ocr, "match": front_text, "row": row})
 
             # 比對 B
             if back_text:
                 score_b = lcs_score(combined_ocr, back_text)
-                print(f"[DEBUG-B] 比對 {combined_ocr} ↔ {back_text} ➜ score = {score_b:.3f}")
+                # print(f"[DEBUG-B] 比對 {combined_ocr} ↔ {back_text} ➜ score = {score_b:.3f}")
                 if score_b > best_back["score"]:
                     best_back.update({"score": score_b, "text": combined_ocr, "match": back_text, "row": row})
 
@@ -93,3 +93,71 @@ def match_ocr_to_front_back_by_permuted_ocr(ocr_texts, df, threshold=0.8):
             result["back"] = best_back
 
     return result if result else None
+
+def match_top_n_ocr_to_front_back(ocr_texts, df, threshold=0.8, top_n=3):
+    results = []
+
+    combined_all = ''.join(ocr_texts).upper()
+    keywords = {"ACETYLCYSTEINE", "ACTEIN"}
+    if any(kw in combined_all for kw in keywords):
+        matched_rows = df[df["文字"].str.contains("ACETYLCYSTEINE|ACTEIN", case=False, na=False)]
+        if not matched_rows.empty:
+            match_row = matched_rows.iloc[0]
+            return [{
+                "score": 1.0,
+                "text": "藥袋特例",
+                "match": "ACETYLCYSTEINE / ACTEIN",
+                "row": match_row,
+                "side": "front"
+            }]
+
+    permutations = itertools.permutations(ocr_texts)
+    for perm in permutations:
+        combined_ocr = ''.join(perm).upper()
+
+        for _, row in df.iterrows():
+            text_field = str(row.get("文字", "")).strip()
+            parts = text_field.split('|')
+
+            front_text, back_text = "", ""
+
+            for p in parts:
+                if ':' in p:
+                    k, v = p.split(':', 1)
+                    key = k.strip().upper()
+                    val = v.strip().upper()
+                    if key == "F":
+                        front_text = val
+                    elif key == "B":
+                        back_text = val
+
+            # 比對 F
+            if front_text:
+                score_f = lcs_score(combined_ocr, front_text)
+                if score_f >= 0.5:
+                    results.append({
+                        "score": score_f,
+                        "text": combined_ocr,
+                        "match": front_text,
+                        "row": row,
+                        "side": "front"
+                    })
+
+            # 比對 B
+            if back_text:
+                score_b = lcs_score(combined_ocr, back_text)
+                if score_b >= 0.5:
+                    results.append({
+                        "score": score_b,
+                        "text": combined_ocr,
+                        "match": back_text,
+                        "row": row,
+                        "side": "back"
+                    })
+
+    # 優先保留高於 threshold 的，再補滿 top_n
+    filtered = [r for r in results if r["score"] >= threshold]
+    if len(filtered) >= top_n:
+        return sorted(filtered, key=lambda r: -r["score"])[:top_n]
+    else:
+        return sorted(results, key=lambda r: -r["score"])[:top_n]

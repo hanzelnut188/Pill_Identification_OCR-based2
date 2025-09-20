@@ -65,7 +65,6 @@ from app.utils.shape_color_utils import (
     detect_shape_from_image
 )
 
-
 # ====== 輕量化設定 ======
 # Render 的 CPU 只有 1 核，避免 PyTorch/NumPy 開太多執行緒
 torch.set_num_threads(int(os.getenv("TORCH_NUM_THREADS", "1")))
@@ -94,7 +93,7 @@ def get_det_model():
 
 def generate_image_versions(base_img):
     """產生多個影像增強版本供 OCR 嘗試"""
-    v1 = enhance_contrast(base_img, 1.5, 1.5, -0.5)
+    # v1 = enhance_contrast(base_img, 1.5, 1.5, -0.5)
     # 減少判斷
     # v2 = desaturate_image(v1)
     # v3 = enhance_contrast(base_img, 5.5, 2.0, -1.0)
@@ -109,9 +108,15 @@ def generate_image_versions(base_img):
     #     (v4, "去飽和2"),
     #     (v5, "模糊優化"),
     # ]
+    # return [
+    #     (base_img, "原圖"),
+    #     (v1, "增強去飽和"),
+    # ]
+
+
     return [
         (base_img, "原圖"),
-        (v1, "增強去飽和"),
+
     ]
 
 
@@ -317,7 +322,6 @@ def process_image(img_path: str):
     y2 = min(cy + side // 2, ih)
     cropped2 = inner[y1:y2, x1:x2].copy()
 
-
     # === 中央區域顏色分析 ===
     # cropped2 = get_center_region(cropped.copy(), size=200)
     cropped2 = increase_brightness(cropped2, value=20)
@@ -354,3 +358,5 @@ def process_image(img_path: str):
             "det_source": det_src,
         }
     }
+
+
