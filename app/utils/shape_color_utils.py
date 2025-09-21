@@ -2,7 +2,7 @@ import cv2
 
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+
 from PIL.Image import Image
 from sklearn.cluster import KMeans
 from collections import Counter
@@ -77,11 +77,11 @@ def get_basic_color_name(rgb):
     bgr = np.uint8([[rgb[::-1]]])  # OpenCV expects BGR
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)[0][0]
     h, s, v = hsv
-    print(f"HSV: {h}, {s}, {v}")
+    # print(f"HSV: {h}, {s}, {v}")
     h = int(h)*2   # Convert to degrees (0-360)
-    print(f"h: {h}")
+    # print(f"h: {h}")
     r, g, b = rgb
-    print(f"RGB: {r}, {g}, {b}")
+    # print(f"RGB: {r}, {g}, {b}")
     # Handle black/white/gray
     if v < 30:   # instead of 40 → more tolerant to lighting
         return "黑色"
@@ -115,16 +115,6 @@ def get_basic_color_name(rgb):
         return "其他"
 
 
-def get_image_rgb(path: str):
-    """
-    Load an image (jpg/png/heic) and return as RGB numpy array.
-    """
-    try:
-        # Use PIL so HEIC is supported
-        pil_img = Image.open(path).convert("RGB")
-        return np.array(pil_img)  # RGB format
-    except Exception as e:
-        raise FileNotFoundError(f"Could not read {path}: {e}")
 
 
 def get_dominant_colors(image, k=3, ignore_black=True, min_ratio=0.3):
@@ -201,27 +191,7 @@ def increase_brightness(img, value=30):
 
 
 
-def get_center_region(img, size=100):
-    """
-    擷取圖片的中央區域 (固定大小)。
 
-    Parameters:
-    - img: 輸入圖片 (H, W, C)
-    - size: 方形區域邊長 (像素)，預設 100
-
-    Returns:
-    - 中央裁切後的圖片
-    """
-    h, w = img.shape[:2]
-    cx, cy = w // 2, h // 2  # 圖片中心點
-
-    # 計算邊界
-    x1 = max(cx - size // 2, 0)
-    y1 = max(cy - size // 2, 0)
-    x2 = min(cx + size // 2, w)
-    y2 = min(cy + size // 2, h)
-
-    return img[y1:y2, x1:x2]
 
 
 

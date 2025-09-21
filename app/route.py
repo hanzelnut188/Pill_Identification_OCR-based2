@@ -2,12 +2,14 @@ import imghdr
 import io
 import os
 from io import BytesIO
+
+import numpy as np
 import pandas as pd
 from flask import request, jsonify, render_template
 import base64
 import time
 import shutil
-from app.utils.matcher import  match_top_n_ocr_to_front_back
+from app.utils.matcher import match_top_n_ocr_to_front_back
 import tempfile
 from PIL import Image
 from pillow_heif import register_heif_opener
@@ -194,54 +196,59 @@ def register_routes(app, data_status):
         result = {c: int(counts.get(c, 0)) for c in buckets}
         return jsonify({"counts": result, "total_colors": len(buckets)})
 
+
     @app.route("/upload", methods=["POST"])
     def upload_image():
-        # print("🟡 [UPLOAD] 收到 POST")
-
         try:
             t0 = time.perf_counter()
+            # === 1. 解析 JSON 並確認欄位 ===
             data = request.get_json()
             if not data or "image" not in data:
                 return jsonify({"ok": False, "error": "缺少 image 欄位"}), 400
-
             b64_data = data["image"]
-            # print(f"🟡 [UPLOAD] JSON 解析完成，有 image 欄位: {bool(b64_data)}")
+            t1 = time.perf_counter()
+            print(f"📥 base64 JSON 接收：{(t1 - t0) * 1000:.1f} ms")
 
-            # 嘗試剝除 base64 header
+            # === 2. 嘗試剝除 base64 header 並解碼 ===
             if b64_data.startswith("data:"):
                 b64_data = b64_data.split(",")[1]
-
             image_bytes = base64.b64decode(b64_data)
-            # print(f"🟡 [UPLOAD] base64 解碼成功，長度: {len(image_bytes)} bytes")
+            t2 = time.perf_counter()
+            print(f"🧪 base64 解碼成功：{(t2 - t1) * 1000:.1f} ms")
 
-            # 嘗試用 Pillow 開啟圖片
+            # === 3. 嘗試用 Pillow 解析圖片格式 ===
+            # === 3. 嘗試用 Pillow 解析圖片格式 ===
             image = None
             try:
                 image = Image.open(io.BytesIO(image_bytes))
                 image.verify()  # 驗證格式合法
-                image = Image.open(io.BytesIO(image_bytes)).convert("RGB")  # 再打開一次取得像素
-                # print("🟢 [UPLOAD] Pillow 成功辨識圖片格式")
+                image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
             except Exception as e:
                 print(f"❌ [UPLOAD] Pillow 無法辨識圖片格式: {e}")
-                # 嘗試用 imghdr 判斷副檔名
                 fmt = imghdr.what(None, image_bytes)
                 print(f"❌ [UPLOAD] imghdr 檢測結果: {fmt}")
                 return jsonify({"ok": False, "error": "不支援的圖片格式"}), 400
 
-            # 儲存成臨時檔案
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-            image.save(temp_file.name)
-            temp_path = temp_file.name
-            temp_file.close()
-            # print(f"🟢 [UPLOAD] 寫入臨時檔 {temp_path} ({os.path.getsize(temp_path)} bytes)")
+            t3 = time.perf_counter()
+            print(f"🖼️ Pillow 解碼驗證：{(t3 - t2)*1000:.1f} ms")
 
-            # 呼叫核心辨識邏輯
+            # === 4. 轉為 numpy (不寫檔案) ===
+            image_np = np.array(image)
+            t4 = time.perf_counter()
+            print(f"🧠 Pillow → numpy 陣列：{(t4 - t3)*1000:.1f} ms")
+
+            # === 5. 呼叫核心辨識邏輯（傳 numpy）===
             from app.utils.pill_detection import process_image
-            result = process_image(temp_path) or {}
-            t2 = time.perf_counter()
+            result = process_image(image_np) or {}
+            t5 = time.perf_counter()
+
+            print(f"🔁 呼叫 process_image()：{(t5 - t4) * 1000:.1f} ms")
+
+            # === 6. 回傳 + 結束 ===
             print(
                 f"🟢 [UPLOAD] 推論成功：文字={result['文字辨識']}最佳版本={result['最佳版本']}信心分數={result['信心分數']} 顏色={result['顏色']} 外型={result['外型']}")
-            print(f"🟢 [UPLOAD] 完成，總耗時 {t2 - t0:.2f}s")
+            print(f"⏱️ [UPLOAD] 完成，總耗時 {(t5 - t0):.2f} s")
+
             return jsonify({"ok": True, "result": result}), 200
 
         except Exception as e:
@@ -254,13 +261,7 @@ def register_routes(app, data_status):
                 "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
             }), 200
 
-        finally:
-            try:
-                shutil.rmtree("./temp_imgs", ignore_errors=True)
-                if temp_path and os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except Exception as e:
-                print(f"⚠️ [UPLOAD] 臨時檔清理失敗：{e}")
+
 
     @app.route("/api/status")
     def api_status():

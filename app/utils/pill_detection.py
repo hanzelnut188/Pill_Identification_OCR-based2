@@ -61,7 +61,7 @@ from app.utils.shape_color_utils import (
 
     get_dominant_colors,
     increase_brightness,
-    get_center_region,
+
     detect_shape_from_image
 )
 
@@ -82,6 +82,7 @@ def get_det_model():
     if _det_model is None:
         print("[DET] loading YOLO model…")
         m = YOLO("models/best.pt")
+
         try:
             m.fuse()
         except Exception:
@@ -112,7 +113,6 @@ def generate_image_versions(base_img):
     #     (base_img, "原圖"),
     #     (v1, "增強去飽和"),
     # ]
-
 
     return [
         (base_img, "原圖"),
@@ -237,23 +237,37 @@ def _pick_crop_from_boxes(input_img, boxes):
 
     cropped = input_img[y1:y2, x1:x2]
     return cropped
+import time  # 確保你有加上這行
 
-
-def process_image(img_path: str):
+# def process_image(img_path: str):
+def process_image(image_np: np.ndarray):
+    #
+    print(f"[PROC] start process_image")
+    t0 = time.perf_counter()
     """
     單張藥品圖片辨識流程：
     YOLO → 裁切 → 顏色/外型 → 多版本 OCR → 回傳
     """
 
+    # === 保留 RGB → 給顏色分析用 ===
+    image_rgb = image_np.copy()
+
+    # === 轉為 BGR → 給 YOLO/OpenCV 處理 ===
+    input_img = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)  # ✅ 關鍵轉換
+    t1 = time.perf_counter()
+    print(f"⏱️ Pillow RGB → OpenCV BGR：{(t1 - t0)*1000:.1f} ms")
+    print(f"⏱️ 讀取圖片：{(t1 - t0)*1000:.1f} ms")
+
     # === 讀取模型 ===
     det_model = get_det_model()
+    t2 = time.perf_counter()
+    print(f"⏱️ 讀取模型：{(t2 - t1)*1000:.1f} ms")
 
-    # === 讀取圖片 (轉為 RGB) ===
-    input_img = read_image_safely(img_path)
-    if input_img is not None:
-        input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2RGB)
     # 標記偵測來源（預設 unknown）
     det_src = "unknown"
+
+    # === YOLO 預測時間 ===
+    yolo_t0 = time.perf_counter()
     res = det_model.predict(
         source=input_img,
         imgsz=640,
@@ -262,14 +276,18 @@ def process_image(img_path: str):
         device=DEVICE,
         verbose=False
     )[0]
+    yolo_t1 = time.perf_counter()
+
+    # === 裁切時間（含 fallback） ===
+    crop_t0 = time.perf_counter()
     boxes = res.boxes
-
     if boxes is not None and boxes.xyxy.shape[0] > 0:
-        cropped = _pick_crop_from_boxes(input_img, boxes)
-        print("YOLO 0.25")
-        det_src = "yolo_conf_0.25"
-    else:
+        cropped_bgr = _pick_crop_from_boxes(input_img, boxes)     # 給 OCR/encode
+        cropped_rgb = _pick_crop_from_boxes(image_rgb, boxes)     # 給顏色分析
 
+        det_src = "yolo_conf_0.25"
+        print("YOLO 0.25")
+    else:
         res_lo = det_model.predict(
             source=input_img,
             imgsz=640,
@@ -278,41 +296,50 @@ def process_image(img_path: str):
             device=DEVICE,
             verbose=False
         )[0]
-
         boxes_lo = res_lo.boxes
         if boxes_lo is not None and boxes_lo.xyxy.shape[0] > 0:
-            cropped = _pick_crop_from_boxes(input_img, boxes_lo)
-            print("YOLO 0.10")
+            cropped_bgr = _pick_crop_from_boxes(input_img, boxes_lo)
+            cropped_rgb = _pick_crop_from_boxes(image_rgb, boxes_lo)
             det_src = "yolo_conf_0.10"
+            print("YOLO 0.10")
         else:
-            # print("[PROC] detection failed — try REMBG fallback…")
-            cropped = _fallback_rembg_crop(input_img)
-            if cropped is None:
-                # print("[PROC] REMBG fallback failed — return early.")
+            cropped_bgr = _fallback_rembg_crop(input_img)
+            cropped_rgb = _fallback_rembg_crop(image_rgb)
+            if cropped_bgr is None or cropped_rgb is None:
                 return {"error": "藥品擷取失敗"}
             det_src = "rembg"
-            print("REMBG fallback")
+            print("REMBG")
+    crop_t1 = time.perf_counter()
+
+    t3 = crop_t1
+    print(f"⏱️ YOLO 預測時間：{(yolo_t1 - yolo_t0)*1000:.1f} ms")
+    print(f"⏱️ 裁切（選框）時間：{(crop_t1 - crop_t0)*1000:.1f} ms")
+    print(f"⏱️ YOLO 偵測+裁切：{(t3 - t1)*1000:.1f} ms")
+
     # === 外型、顏色分析 (直接用裁切圖, 不去背) ===
-    shape, _ = detect_shape_from_image(cropped, cropped, expected_shape=None)
+    shape, _ = detect_shape_from_image(cropped_bgr, cropped_bgr, expected_shape=None)
+    t4 = time.perf_counter()
+    print(f"⏱️ 外型分析：{(t4 - t3)*1000:.1f} ms")
 
     # === 多版本 OCR 辨識 ===
-    image_versions = generate_image_versions(cropped)
+    image_versions = generate_image_versions(cropped_bgr)
     best_texts, best_name, best_score = get_best_ocr_texts(
         image_versions, ocr_engine=ocr_engine
     )
-    # # === 中央區域顏色分析（比例切 + 內縮） ===
-    CENTER_RATIO = 0.6  # 取短邊的 50% 當中心方塊；可試 0.40~0.60
-    MARGIN_RATIO = 0.06  # 先把整個裁切圖四邊內縮 6%，避免邊緣背景
+    t5 = time.perf_counter()
+    print(f"⏱️ OCR 多版本辨識：{(t5 - t4)*1000:.1f} ms")
 
-    h, w = cropped.shape[:2]
-    # 先做「內縮框」以避開邊緣雜訊
+    # === 中央區域顏色分析（比例切 + 內縮） ===
+    CENTER_RATIO = 0.6  # 取短邊的 60% 當中心方塊
+    MARGIN_RATIO = 0.06  # 裁切圖四邊內縮 6%
+
+    h, w = cropped_rgb.shape[:2]
     mx = int(w * MARGIN_RATIO)
     my = int(h * MARGIN_RATIO)
     ix1, iy1 = mx, my
     ix2, iy2 = max(w - mx, ix1 + 1), max(h - my, iy1 + 1)
-    inner = cropped[iy1:iy2, ix1:ix2].copy()
+    inner = cropped_rgb[iy1:iy2, ix1:ix2].copy()
 
-    # 在「內縮框」內以比例切中心方塊
     ih, iw = inner.shape[:2]
     side = max(1, int(min(iw, ih) * CENTER_RATIO))
     cx, cy = iw // 2, ih // 2
@@ -323,18 +350,20 @@ def process_image(img_path: str):
     cropped2 = inner[y1:y2, x1:x2].copy()
 
     # === 中央區域顏色分析 ===
-    # cropped2 = get_center_region(cropped.copy(), size=200)
     cropped2 = increase_brightness(cropped2, value=20)
     rgb_colors, hex_colors = get_dominant_colors(cropped2, k=3, min_ratio=0.35)
     rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
+    t6 = time.perf_counter()
+    print(f"⏱️ 中央顏色分析：{(t6 - t5)*1000:.1f} ms")
 
-    cropped_bgr = cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
+    # === encode 成 base64 傳回前端 ===
     ok, buffer = cv2.imencode(".jpg", cropped_bgr)
     cropped_b64 = (
         f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
         if ok else None
     )
 
+    # === 色彩名稱判定（由 RGB 轉 HSV，再分類）===
     basic_names, hsv_values = [], []
     for rgb in rgb_colors_int:
         bgr = np.uint8([[rgb[::-1]]])
@@ -343,9 +372,12 @@ def process_image(img_path: str):
         basic_names.append(get_basic_color_name(rgb))
 
     colors = list(dict.fromkeys(basic_names))
+    t7 = time.perf_counter()
+    print(f"⏱️ 顏色分類：{(t7 - t6)*1000:.1f} ms")
 
     # === 最終結果 ===
     print(f"[PROC] OCR={best_texts}, shape={shape}, colors={colors}, score={best_score:.3f}")
+    print(f"⏱️ 🔚 總耗時：{(t7 - t0)*1000:.1f} ms")
 
     return {
         "文字辨識": best_texts if best_texts else ["None"],
@@ -358,5 +390,3 @@ def process_image(img_path: str):
             "det_source": det_src,
         }
     }
-
-
