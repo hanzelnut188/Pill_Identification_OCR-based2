@@ -70,12 +70,19 @@ from app.utils.shape_color_utils import (
 torch.set_num_threads(int(os.getenv("TORCH_NUM_THREADS", "1")))
 
 logging.getLogger("openrec").setLevel(logging.ERROR)
-ocr_engine = OpenOCR(backend='onnx', device='cpu')
+# ocr_engine = OpenOCR(backend='onnx', device='cpu')
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+
+_ocr_engine = None
+def get_ocr_engine():
+    global _ocr_engine
+    if _ocr_engine is None:
+        print("[OCR] loading OpenOCR (onnx, cpu)…")
+        _ocr_engine = OpenOCR(backend='onnx', device='cpu')
+    return _ocr_engine
 _det_model = None
-
-
 def get_det_model():
     """Lazy-load YOLO 權重，只初始化一次"""
     global _det_model
@@ -239,24 +246,28 @@ def _pick_crop_from_boxes(input_img, boxes):
     return cropped
 import time  # 確保你有加上這行
 
-# def process_image(img_path: str):
-def process_image(image_np: np.ndarray):
-    #
-    print(f"[PROC] start process_image")
-    t0 = time.perf_counter()
+def process_image(img_path: str):
     """
     單張藥品圖片辨識流程：
-    YOLO → 裁切 → 顏色/外型 → 多版本 OCR → 回傳
+    圖片路徑 → 讀取 → YOLO → 裁切 → 顏色/外型 → 多版本 OCR → 回傳
     """
-
-    # === Debug 計時：整體封包（用來對比外層 Flask）===
+    print(f"[PROC] start process_image: {img_path}")
+    t0 = time.perf_counter()
     debug_start = time.perf_counter()
 
-    # === 保留 RGB → 給顏色分析用 ===
-    image_rgb = image_np.copy()
+    # === 讀圖（BGR）===
+    image_bgr = read_image_safely(img_path)  # ✅ BGR 格式，OpenCV/YOLO 用
+    if image_bgr is None:
+        return {"error": "圖片讀取失敗"}
 
-    # === 轉為 BGR → 給 YOLO/OpenCV 處理 ===
-    input_img = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)  # ✅ 關鍵轉換
+    # === 分出 RGB 給顏色分析用 ===
+    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)  # ✅ RGB 給顏色分析
+
+    # === 讀取模型（已快取）===
+    det_model = get_det_model()
+
+    # === 用 BGR 做 YOLO 偵測 ===
+    input_img = image_bgr.copy()
     t1 = time.perf_counter()
     print(f"⏱️ Pillow RGB → OpenCV BGR：{(t1 - t0)*1000:.1f} ms")
     print(f"⏱️ 讀取圖片：{(t1 - t0)*1000:.1f} ms")
@@ -329,8 +340,9 @@ def process_image(image_np: np.ndarray):
     print("🔍 OCR 開始辨識")
     image_versions = generate_image_versions(cropped_bgr)
     best_texts, best_name, best_score = get_best_ocr_texts(
-        image_versions, ocr_engine=ocr_engine
+        image_versions, ocr_engine=get_ocr_engine()
     )
+
     t5 = time.perf_counter()
     print("✅ OCR 結束辨識")
     print(f"⏱️ OCR 多版本辨識：{(t5 - t4)*1000:.1f} ms")

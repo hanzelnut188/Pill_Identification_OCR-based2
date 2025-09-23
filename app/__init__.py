@@ -1,6 +1,4 @@
 import os
-from app.route import register_routes
-from app.utils.data_loader import generate_color_shape_dicts
 
 # 在任何 heavy import 之前限制執行緒
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -19,6 +17,11 @@ try:
 
 except Exception as e:
     print(f"Error importing Flask-CORS: {e}")
+
+
+
+# __init__.py
+
 
 
 def create_app():
@@ -81,16 +84,16 @@ def create_app():
             static_url_path='/static'
         )
 
-        # 驗證 Flask 能找到模板
-        try:
-            template_loader = app.jinja_env.loader
-
-            # 測試模板載入
-            template_source = template_loader.get_source(app.jinja_env, 'index.html')
-
-
-        except Exception as template_test_error:
-            print(f"Flask cannot find template: {template_test_error}")
+        # # 驗證 Flask 能找到模板
+        # try:
+        #     template_loader = app.jinja_env.loader
+        #
+        #     # 測試模板載入
+        #     template_source = template_loader.get_source(app.jinja_env, 'index.html')
+        #
+        #
+        # except Exception as template_test_error:
+        #     print(f"Flask cannot find template: {template_test_error}")
 
     except Exception as e:
         print(f"Error creating Flask app: {e}")
@@ -101,10 +104,11 @@ def create_app():
 
     except Exception as e:
         print(f"Error configuring CORS: {e}")
-
+    from app.utils.data_loader import generate_color_shape_dicts
+    import pandas as pd
     # 數據載入
     try:
-        import pandas as pd
+
         df = pd.read_excel("data/TESTData.xlsx")
 
         data_status = f"Data loaded: {len(df)} rows"
@@ -113,28 +117,28 @@ def create_app():
         color_dict, shape_dict, invalid_colors = generate_color_shape_dicts(df)
         app.color_dict = color_dict
         app.shape_dict = shape_dict
-        ###以下可刪
-        # === Color statistics (per designed buckets) ===
-        COLOR_BUCKETS = ["白色","透明","黑色","棕色","紅色","橘色","皮膚色","黃色","綠色","藍色","紫色","粉紅色","灰色"]
-
-        # Count UNIQUE drugs mapped to each color (e.g., unique '用量排序' ids).
-        color_counts = {c: 0 for c in COLOR_BUCKETS}
-        try:
-            for c in COLOR_BUCKETS:
-                vals = color_dict.get(c, [])
-                # Use a set to avoid double-counting the same drug if it appears multiple times
-                color_counts[c] = len(set(vals)) if hasattr(vals, "__iter__") else int(vals)
-            # expose on app for other routes / debug
-            app.color_counts = color_counts
-
-            # Console summary (always includes zeros)
-            summary = " | ".join(f"{c}:{int(color_counts[c])}" for c in COLOR_BUCKETS)
-            print("📊 顏色→藥物數量統計（Excel/字典基準）", summary)
-        ###以上可刪
-        except Exception as e:
-            print(f"⚠️ Color counting failed: {e}")
-            app.color_counts = {c: 0 for c in COLOR_BUCKETS}
-
+        # ###以下可刪
+        # # === Color statistics (per designed buckets) ===
+        # COLOR_BUCKETS = ["白色","透明","黑色","棕色","紅色","橘色","皮膚色","黃色","綠色","藍色","紫色","粉紅色","灰色"]
+        #
+        # # Count UNIQUE drugs mapped to each color (e.g., unique '用量排序' ids).
+        # color_counts = {c: 0 for c in COLOR_BUCKETS}
+        # try:
+        #     for c in COLOR_BUCKETS:
+        #         vals = color_dict.get(c, [])
+        #         # Use a set to avoid double-counting the same drug if it appears multiple times
+        #         color_counts[c] = len(set(vals)) if hasattr(vals, "__iter__") else int(vals)
+        #     # expose on app for other routes / debug
+        #     app.color_counts = color_counts
+        #
+        #     # Console summary (always includes zeros)
+        #     summary = " | ".join(f"{c}:{int(color_counts[c])}" for c in COLOR_BUCKETS)
+        #     print("📊 顏色→藥物數量統計（Excel/字典基準）", summary)
+        #
+        # except Exception as e:
+        #     print(f"⚠️ Color counting failed: {e}")
+        #     app.color_counts = {c: 0 for c in COLOR_BUCKETS}
+        # ###以上可刪
 
     except Exception as e:
         print(f"✗ Error loading data: {e}")
@@ -142,7 +146,16 @@ def create_app():
         app.df = None
 
     # 註冊路由
-
+    from app.route import register_routes
     register_routes(app, data_status)
+    # ⑤ 預熱模型（使用「lazy 單例」的 getter，不會重複載）
+    from app.utils.pill_detection import get_det_model, get_ocr_engine
+    try:
+        get_det_model()
+        get_ocr_engine()
+        print("🔥 Warmed up YOLO & OpenOCR")
+    except Exception as e:
+        print(f"⚠️ Warmup failed: {e}")
 
     return app
+

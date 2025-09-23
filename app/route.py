@@ -3,6 +3,7 @@ import io
 import os
 from io import BytesIO
 
+import cv2
 import numpy as np
 import pandas as pd
 from flask import request, jsonify, render_template
@@ -20,10 +21,7 @@ register_heif_opener()  # ✅ 全域註冊 HEIC 支援
 # 你需要根據實際情況調整匯入
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-
-# 可以跑在RENDER 但功能無用
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+from app.utils.pill_detection import process_image
 
 
 def safe_get(row, key):
@@ -196,9 +194,9 @@ def register_routes(app, data_status):
         result = {c: int(counts.get(c, 0)) for c in buckets}
         return jsonify({"counts": result, "total_colors": len(buckets)})
 
-
     @app.route("/upload", methods=["POST"])
     def upload_image():
+        temp_path = None
         try:
             t0 = time.perf_counter()
             # === 1. 解析 JSON 並確認欄位 ===
@@ -220,29 +218,36 @@ def register_routes(app, data_status):
             # === 3. 嘗試用 Pillow 解析圖片格式 ===
             image = None
             try:
-                image = Image.open(io.BytesIO(image_bytes))
-                image.verify()  # 驗證格式合法
                 image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+                # （已移除 image.verify() 以避免重複解碼/重開）
             except Exception as e:
+
                 print(f"❌ [UPLOAD] Pillow 無法辨識圖片格式: {e}")
                 fmt = imghdr.what(None, image_bytes)
                 print(f"❌ [UPLOAD] imghdr 檢測結果: {fmt}")
                 return jsonify({"ok": False, "error": "不支援的圖片格式"}), 400
 
             t3 = time.perf_counter()
-            print(f"🖼️ Pillow 解碼驗證：{(t3 - t2)*1000:.1f} ms")
+            print(f"🖼️ Pillow 解碼驗證：{(t3 - t2) * 1000:.1f} ms")
 
-            # === 4. 轉為 numpy (不寫檔案) ===
-            image_np = np.array(image)
+            # === 4. 暫存為圖片檔案（JPEG）===
+            import tempfile
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+            temp_path = temp_file.name
+            image.save(temp_path, format="JPEG")
+            temp_file.close()
             t4 = time.perf_counter()
-            print(f"🧠 Pillow → numpy 陣列：{(t4 - t3)*1000:.1f} ms")
+            print(f"🧠 圖片儲存至暫存檔：{(t4 - t3) * 1000:.1f} ms")
 
-            # === 5. 呼叫核心辨識邏輯（傳 numpy）===
-            from app.utils.pill_detection import process_image
-            result = process_image(image_np) or {}
+            # === 5. 呼叫核心辨識邏輯（傳圖片路徑）===
+            result = process_image(temp_path) or {}
+
             t5 = time.perf_counter()
 
             print(f"🔁 呼叫 process_image()：{(t5 - t4) * 1000:.1f} ms")
+            if isinstance(result, dict) and "error" in result:
+                print(f"🔴 [UPLOAD] pipeline error: {result['error']}")
+                return jsonify({"ok": False, "error": result.get("error", "unknown")}), 422
 
             # === 6. 回傳 + 結束 ===
             print(
@@ -250,6 +255,7 @@ def register_routes(app, data_status):
             print(f"⏱️ [UPLOAD] 完成，總耗時 {(t5 - t0):.2f} s")
 
             return jsonify({"ok": True, "result": result}), 200
+
 
         except Exception as e:
             import traceback
@@ -260,9 +266,12 @@ def register_routes(app, data_status):
                 "error": f"{e}",
                 "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
             }), 200
-
-
-
+        finally:
+            try:
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception as e:
+                print(f"⚠️ [UPLOAD] 臨時檔清理失敗：{e}")
     @app.route("/api/status")
     def api_status():
         return jsonify({
@@ -274,7 +283,6 @@ def register_routes(app, data_status):
         })
 
     # print("✓ Routes registered successfully")
-    from app.utils.matcher import match_ocr_to_front_back_by_permuted_ocr
     MIN_TOP1_ACCEPT = 0.30  # Top-1 分數低於此值 → 請重拍
     HARD_THRESHOLD = 0.80  # 正常門檻
 

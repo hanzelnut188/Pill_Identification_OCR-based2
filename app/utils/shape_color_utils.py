@@ -1,11 +1,9 @@
 import cv2
-
-import cv2
 import numpy as np
-
-from PIL.Image import Image
 from sklearn.cluster import KMeans
 from collections import Counter
+
+
 def rotate_image_by_angle(image, angle):
     """
     將圖片依指定角度旋轉。
@@ -30,9 +28,11 @@ def enhance_contrast(img, clip_limit, alpha, beta):
     blurred = cv2.GaussianBlur(enhance_img, (5, 5), 3.0)
     return cv2.addWeighted(enhance_img, alpha, blurred, beta, 0)
 
+
 def rgb_to_hex(color):
     """Convert RGB (0-255) to HEX string."""
     return "#{:02x}{:02x}{:02x}".format(int(color[0]), int(color[1]), int(color[2]))
+
 
 def get_center_region(img, size=100):
     """
@@ -53,6 +53,7 @@ def get_center_region(img, size=100):
 
     return img[y1:y2, x1:x2]
 
+
 def is_color_similar(hsv1, hsv2, h_thresh=20, s_thresh=70, v_thresh=70):
     """
     Check if two HSV colors are similar within thresholds.
@@ -71,6 +72,7 @@ def is_color_similar(hsv1, hsv2, h_thresh=20, s_thresh=70, v_thresh=70):
 
     return (dh <= h_thresh) and (ds <= s_thresh) and (dv <= v_thresh)
 
+
 def get_basic_color_name(rgb):
     """Classify an RGB value into a basic color family (Chinese Traditional)."""
     # Convert RGB (0–255) to HSV
@@ -78,22 +80,20 @@ def get_basic_color_name(rgb):
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)[0][0]
     h, s, v = hsv
     # print(f"HSV: {h}, {s}, {v}")
-    h = int(h)*2   # Convert to degrees (0-360)
+    h = int(h) * 2  # Convert to degrees (0-360)
     # print(f"h: {h}")
     r, g, b = rgb
     # print(f"RGB: {r}, {g}, {b}")
     # Handle black/white/gray
-    if v < 30:   # instead of 40 → more tolerant to lighting
+    if v < 30:  # instead of 40 → more tolerant to lighting
         return "黑色"
-    if s < 55:#or is it 140? for the greyish and v > 180
+    if s < 55:  # or is it 140? for the greyish and v > 180
         return "白色"
-
 
     # Hue ranges
     if (h < 20 or h >= 330) and s > 70 and r > 50:
         return "紅色"
     elif (s < 35 and 35 < v < 220) or ((196 < h < 250) and s < 100 and v < 100):
-        print("a")
         return "灰色"
 
         # return "灰色"
@@ -103,7 +103,7 @@ def get_basic_color_name(rgb):
 
     elif h < 75:
         return "黃色"
-    elif  h < 195: #green and blue only, need to add s and v
+    elif h < 195:  # green and blue only, need to add s and v
         return "綠色"
     elif h < 250:
         return "藍色"
@@ -113,8 +113,6 @@ def get_basic_color_name(rgb):
         return "粉紅色"
     else:
         return "其他"
-
-
 
 
 def get_dominant_colors(image, k=3, ignore_black=True, min_ratio=0.3):
@@ -140,6 +138,7 @@ def get_dominant_colors(image, k=3, ignore_black=True, min_ratio=0.3):
             bgr = np.uint8([[c[::-1]]])
             h, s, v = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)[0][0]
             return v < threshold
+
         ordered_colors = [c for c in ordered_colors if not is_black(c)]
 
     # ---- merge similar colors ----
@@ -175,25 +174,6 @@ def get_dominant_colors(image, k=3, ignore_black=True, min_ratio=0.3):
     hex_colors = [rgb_to_hex(mc["rgb"]) for mc in filtered_colors]
 
     return [mc["rgb"] for mc in filtered_colors], hex_colors
-
-def increase_brightness(img, value=30):
-    """Increase brightness of an RGB image by boosting V channel in HSV."""
-    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    h, s, v = cv2.split(hsv)
-
-    lim = 255 - value
-    v[v > lim] = 255
-    v[v <= lim] += value
-
-    final_hsv = cv2.merge((h, s, v))
-    img_bright = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
-    return img_bright
-
-
-
-
-
-
 
 
 # === 可調參數（預設值放你目前最佳）===
