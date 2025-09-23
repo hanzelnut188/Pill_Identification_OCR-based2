@@ -357,7 +357,7 @@ def register_routes(app, data_status):
             print(f"🟡 [MATCH] 有文字，要進行比對 ➜ {texts}")
             # match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub, threshold=HARD_THRESHOLD)
 
-            top_matches = match_top_n_ocr_to_front_back(texts, df_sub, threshold=HARD_THRESHOLD, top_n=3)
+            top_matches = match_top_n_ocr_to_front_back(texts, df_sub, threshold=HARD_THRESHOLD, top_n=4)
 
             # === 門檻沒過：降門檻取 Top-1 回傳（low_confidence） ===
             if not top_matches:

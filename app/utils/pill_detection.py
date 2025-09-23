@@ -249,6 +249,9 @@ def process_image(image_np: np.ndarray):
     YOLO → 裁切 → 顏色/外型 → 多版本 OCR → 回傳
     """
 
+    # === Debug 計時：整體封包（用來對比外層 Flask）===
+    debug_start = time.perf_counter()
+
     # === 保留 RGB → 給顏色分析用 ===
     image_rgb = image_np.copy()
 
@@ -258,15 +261,16 @@ def process_image(image_np: np.ndarray):
     print(f"⏱️ Pillow RGB → OpenCV BGR：{(t1 - t0)*1000:.1f} ms")
     print(f"⏱️ 讀取圖片：{(t1 - t0)*1000:.1f} ms")
 
-    # === 讀取模型 ===
+    # === 讀取模型（已快取）===
     det_model = get_det_model()
     t2 = time.perf_counter()
     print(f"⏱️ 讀取模型：{(t2 - t1)*1000:.1f} ms")
 
-    # 標記偵測來源（預設 unknown）
+    # === Debug 標記：預測來源 ===
     det_src = "unknown"
 
     # === YOLO 預測時間 ===
+    print("🔍 YOLO 開始預測")
     yolo_t0 = time.perf_counter()
     res = det_model.predict(
         source=input_img,
@@ -277,14 +281,14 @@ def process_image(image_np: np.ndarray):
         verbose=False
     )[0]
     yolo_t1 = time.perf_counter()
+    print("✅ YOLO 結束預測")
 
-    # === 裁切時間（含 fallback） ===
+    # === 裁切時間（含 fallback）===
     crop_t0 = time.perf_counter()
     boxes = res.boxes
     if boxes is not None and boxes.xyxy.shape[0] > 0:
         cropped_bgr = _pick_crop_from_boxes(input_img, boxes)     # 給 OCR/encode
         cropped_rgb = _pick_crop_from_boxes(image_rgb, boxes)     # 給顏色分析
-
         det_src = "yolo_conf_0.25"
         print("YOLO 0.25")
     else:
@@ -322,20 +326,21 @@ def process_image(image_np: np.ndarray):
     print(f"⏱️ 外型分析：{(t4 - t3)*1000:.1f} ms")
 
     # === 多版本 OCR 辨識 ===
+    print("🔍 OCR 開始辨識")
     image_versions = generate_image_versions(cropped_bgr)
     best_texts, best_name, best_score = get_best_ocr_texts(
         image_versions, ocr_engine=ocr_engine
     )
     t5 = time.perf_counter()
+    print("✅ OCR 結束辨識")
     print(f"⏱️ OCR 多版本辨識：{(t5 - t4)*1000:.1f} ms")
 
     # === 中央區域顏色分析（比例切 + 內縮） ===
-    CENTER_RATIO = 0.6  # 取短邊的 60% 當中心方塊
+    CENTER_RATIO = 0.6   # 取短邊的 60% 當中心方塊
     MARGIN_RATIO = 0.06  # 裁切圖四邊內縮 6%
 
     h, w = cropped_rgb.shape[:2]
-    mx = int(w * MARGIN_RATIO)
-    my = int(h * MARGIN_RATIO)
+    mx, my = int(w * MARGIN_RATIO), int(h * MARGIN_RATIO)
     ix1, iy1 = mx, my
     ix2, iy2 = max(w - mx, ix1 + 1), max(h - my, iy1 + 1)
     inner = cropped_rgb[iy1:iy2, ix1:ix2].copy()
@@ -343,13 +348,11 @@ def process_image(image_np: np.ndarray):
     ih, iw = inner.shape[:2]
     side = max(1, int(min(iw, ih) * CENTER_RATIO))
     cx, cy = iw // 2, ih // 2
-    x1 = max(cx - side // 2, 0)
-    y1 = max(cy - side // 2, 0)
-    x2 = min(cx + side // 2, iw)
-    y2 = min(cy + side // 2, ih)
+    x1, y1 = max(cx - side // 2, 0), max(cy - side // 2, 0)
+    x2, y2 = min(cx + side // 2, iw), min(cy + side // 2, ih)
     cropped2 = inner[y1:y2, x1:x2].copy()
 
-    # === 中央區域顏色分析 ===
+    # === 顏色分析（中央區域）===
     cropped2 = increase_brightness(cropped2, value=20)
     rgb_colors, hex_colors = get_dominant_colors(cropped2, k=3, min_ratio=0.35)
     rgb_colors_int = [tuple(map(int, c)) for c in rgb_colors]
@@ -375,9 +378,12 @@ def process_image(image_np: np.ndarray):
     t7 = time.perf_counter()
     print(f"⏱️ 顏色分類：{(t7 - t6)*1000:.1f} ms")
 
-    # === 最終結果 ===
+    # === 最終結果輸出 ===
     print(f"[PROC] OCR={best_texts}, shape={shape}, colors={colors}, score={best_score:.3f}")
-    print(f"⏱️ 🔚 總耗時：{(t7 - t0)*1000:.1f} ms")
+    print(f"⏱️ 🔚 總耗時（內部統計）：{(t7 - t0)*1000:.1f} ms")
+
+    debug_end = time.perf_counter()
+    print(f"🟠 process_image() 實際耗時（外層觀察）：{(debug_end - debug_start)*1000:.1f} ms")
 
     return {
         "文字辨識": best_texts if best_texts else ["None"],
