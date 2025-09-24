@@ -24,3 +24,5 @@ openpyxl
 # YOLOv8 套件
 ultralytics
 torch~=2.7.1
+
+rembg
