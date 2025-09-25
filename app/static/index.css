@@ -1,3 +1,4 @@
+
 /* 標準重設 */
 * {
     margin: 0;
@@ -414,5 +415,113 @@ select {
     #result-area .btn-14,
     .match-btn-wrapper .btn-14{
         width: 100%;
+    }
+}
+/* 讓 iOS 不亂縮放字 */
+html { -webkit-text-size-adjust: 100%; }
+
+/* 手機版調整（≤ 480px） */
+@media (max-width: 480px){
+
+    /* 1) 別用 vw：固定 padding、容器寬一律貼齊 */
+    .container{
+        padding: 16px !important;
+        width: 92vw;
+        max-width: 420px;
+    }
+
+    /* 2) 表單：改成一欄直排，避免「左標籤右白框」擠壓 */
+    #result-area .selection-container{
+        transform: none !important;   /* 保險，避免殘留位移 */
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+    #result-area .selection-container label{
+        flex: 0 0 auto;
+        width: 100%;
+        text-align: left;
+    }
+    #result-area .selection-container input,
+    #result-area .selection-container select{
+        width: 100% !important;
+        font-size: 16px;              /* ✅ 防 iOS 自動放大 */
+        padding: 10px 12px;
+    }
+
+    /* 3) 上方兩顆按鈕：跟容器等寬、不要太高 */
+    .upload-buttons{
+        width: 100% !important;
+        max-width: 100% !important;
+        gap: 10px;
+        justify-content: center;
+    }
+    .upload-btn{
+        flex: 1 1 0;
+        min-width: 0;
+        height: 52px;
+    }
+
+    /* 4) 確認按鈕：滿寬置中（或你要比白框小就把 100% 改成 calc(100% - 40px)） */
+    #result-area .btn-14,
+    .match-btn-wrapper .btn-14{
+        width: 100% !important;
+        margin: 20px auto 0;
+        transform: none !important;
+    }
+}
+/* iOS 不自動放大 */
+html { -webkit-text-size-adjust: 100%; }
+
+/* 手機版（≤480px）修正：不用 vw，表單直排、按鈕滿寬 */
+@media (max-width: 480px){
+    .container{
+        padding: 16px !important;   /* 取代 2vw，避免放大 */
+        width: 92vw;                /* 更貼齊手機寬 */
+        max-width: 420px;
+        box-shadow: 0 4px 12px rgba(0,0,0,.1); /* 取代用 vw 的陰影 */
+        border-radius: 12px;        /* 取代 0.8vw */
+    }
+
+    /* 表單一列改直排，避免窄螢幕擠壓 */
+    #result-area .selection-container{
+        transform: none !important;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+    #result-area .selection-container label{
+        flex: 0 0 auto;
+        width: 100%;
+        text-align: left;
+    }
+    #result-area .selection-container input,
+    #result-area .selection-container select{
+        width: 100% !important;
+        font-size: 16px;            /* 防 iOS 自動縮放 */
+        padding: 10px 12px;
+    }
+
+    /* 上方兩顆按鈕：等寬、較矮 */
+    .upload-buttons{
+        width: 100% !important;
+        max-width: 100% !important;
+        gap: 10px;
+        justify-content: center;
+    }
+    .upload-btn{
+        flex: 1 1 0;
+        min-width: 0;
+        height: 52px;
+    }
+
+    /* 確認按鈕：滿寬或略小都可以 */
+    #result-area .btn-14,
+    .match-btn-wrapper .btn-14{
+        width: calc(100% - 24px) !important;  /* 想滿寬就改成 100% */
+        margin: 20px auto 0;
+        transform: none !important;
     }
 }

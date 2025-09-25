@@ -1,3 +1,13 @@
+// inject viewport meta if missing (fix iOS auto zoom & layout scale)
+(function () {
+    if (!document.querySelector('meta[name="viewport"]')) {
+        var m = document.createElement('meta');
+        m.name = 'viewport';
+        m.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+        document.head.appendChild(m);
+    }
+})();
+
 // 獲取 DOM 元素
 const uploadInput = document.getElementById('uploadInput');
 const customFileButton = document.getElementById('customFileButton');
@@ -7,7 +17,7 @@ const textField = document.getElementById('recognizedText');
 const color1Select = document.getElementById('color1');
 const color2Select = document.getElementById('color2');
 const shapeSelect = document.getElementById('shape');
-const confirmButton = document.getElementById('confirmButton');
+const confirmButton = document.getElementById('match-button');
 
 customFileButton.addEventListener('click', () => {
     fileInput.click();
