@@ -125,7 +125,7 @@ def _run_single_image(img_path: Path, det_model, exp_shape=None, enable_fallback
 
     dbg = out.get("debug", {}) or {}
     detsrc = dbg.get("det_source", "")
-    yolo_ok = detsrc in ("yolo_conf_0.25", "yolo_conf_0.10", "rembg")  # 你要不要把 rembg 算成功自行決定
+    yolo_ok = detsrc in ("yolo_conf_0.25", "yolo_conf_0.10")  # 你要不要把 rembg 算成功自行決定
 
     return {
         "out": out,
@@ -222,9 +222,9 @@ def main(
             # Color correctness (order-insensitive with mapping)
             # Color correctness (order-insensitive, EXACT match, no near-color mapping)
             pred_color_set = _to_color_set_exact(colors)
-            print(f"pred: {pred_color_set}")
+            # print(f"pred: {pred_color_set}")
             exp_color_set = _parse_expected_colors_exact(row.get("顏色", ""))  # 你的欄名依實際為準
-            print(f"exp: {exp_color_set}")
+            # print(f"exp: {exp_color_set}")
             is_color_correct = (
                     exp_color_set and pred_color_set and len(pred_color_set.intersection(exp_color_set)) > 0)
 

@@ -204,15 +204,15 @@ def register_routes(app, data_status):
             if not data or "image" not in data:
                 return jsonify({"ok": False, "error": "缺少 image 欄位"}), 400
             b64_data = data["image"]
-            t1 = time.perf_counter()
-            print(f"📥 base64 JSON 接收：{(t1 - t0) * 1000:.1f} ms")
+            # t1 = time.perf_counter()
+            # print(f"📥 base64 JSON 接收：{(t1 - t0) * 1000:.1f} ms")
 
             # === 2. 嘗試剝除 base64 header 並解碼 ===
             if b64_data.startswith("data:"):
                 b64_data = b64_data.split(",")[1]
             image_bytes = base64.b64decode(b64_data)
-            t2 = time.perf_counter()
-            print(f"🧪 base64 解碼成功：{(t2 - t1) * 1000:.1f} ms")
+            # t2 = time.perf_counter()
+            # print(f"🧪 base64 解碼成功：{(t2 - t1) * 1000:.1f} ms")
 
             # === 3. 嘗試用 Pillow 解析圖片格式 ===
             # === 3. 嘗試用 Pillow 解析圖片格式 ===
@@ -227,8 +227,8 @@ def register_routes(app, data_status):
                 print(f"❌ [UPLOAD] imghdr 檢測結果: {fmt}")
                 return jsonify({"ok": False, "error": "不支援的圖片格式"}), 400
 
-            t3 = time.perf_counter()
-            print(f"🖼️ Pillow 解碼驗證：{(t3 - t2) * 1000:.1f} ms")
+            # t3 = time.perf_counter()
+            # print(f"🖼️ Pillow 解碼驗證：{(t3 - t2) * 1000:.1f} ms")
 
             # === 4. 暫存為圖片檔案（JPEG）===
             import tempfile
@@ -236,15 +236,15 @@ def register_routes(app, data_status):
             temp_path = temp_file.name
             image.save(temp_path, format="JPEG")
             temp_file.close()
-            t4 = time.perf_counter()
-            print(f"🧠 圖片儲存至暫存檔：{(t4 - t3) * 1000:.1f} ms")
+            # t4 = time.perf_counter()
+            # print(f"🧠 圖片儲存至暫存檔：{(t4 - t3) * 1000:.1f} ms")
 
             # === 5. 呼叫核心辨識邏輯（傳圖片路徑）===
             result = process_image(temp_path) or {}
 
             t5 = time.perf_counter()
 
-            print(f"🔁 呼叫 process_image()：{(t5 - t4) * 1000:.1f} ms")
+            # print(f"🔁 呼叫 process_image()：{(t5 - t4) * 1000:.1f} ms")
             if isinstance(result, dict) and "error" in result:
                 print(f"🔴 [UPLOAD] pipeline error: {result['error']}")
                 return jsonify({"ok": False, "error": result.get("error", "unknown")}), 422

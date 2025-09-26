@@ -25,4 +25,3 @@ openpyxl
 ultralytics
 torch~=2.7.1
 
-rembg
