@@ -240,14 +240,20 @@ def register_routes(app, data_status):
             # print(f"🧠 圖片儲存至暫存檔：{(t4 - t3) * 1000:.1f} ms")
 
             # === 5. 呼叫核心辨識邏輯（傳圖片路徑）===
+
+
+
+
             result = process_image(temp_path) or {}
-
             t5 = time.perf_counter()
-
-            # print(f"🔁 呼叫 process_image()：{(t5 - t4) * 1000:.1f} ms")
+            # 如果 process_image 回傳錯誤 → 不要丟 500，直接回應 JSON
             if isinstance(result, dict) and "error" in result:
-                print(f"🔴 [UPLOAD] pipeline error: {result['error']}")
-                return jsonify({"ok": False, "error": result.get("error", "unknown")}), 422
+                print(f"🟠 [UPLOAD] 無法偵測藥物: {result['error']}")
+                return jsonify({
+                    "ok": False,
+                    "error": "無法偵測藥物，請重新上傳圖片",
+                    "result": {"文字辨識": [], "顏色": [], "外型": "", "cropped_image": ""}
+                }), 200  # ✅ 回傳 200，表示 API 正常運作，只是無結果
 
             # === 6. 回傳 + 結束 ===
             print(

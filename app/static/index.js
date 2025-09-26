@@ -62,7 +62,7 @@ async function Detection(imageData) {
 
         const data = await res.json();
         if (!data.ok) {                            // 後端已統一回 { ok:false, error, result:{} }
-            alert('辨識失敗：' + (data.error || '未知錯誤'));
+            alert('❌ 錯誤訊息：' + (data.error || '未知錯誤'));
             return;
         }
 
