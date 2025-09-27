@@ -74,15 +74,20 @@ logging.getLogger("openrec").setLevel(logging.ERROR)
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-
 _ocr_engine = None
+
+
 def get_ocr_engine():
     global _ocr_engine
     if _ocr_engine is None:
         print("[OCR] loading OpenOCR (onnx, cpu)…")
         _ocr_engine = OpenOCR(backend='onnx', device='cpu')
     return _ocr_engine
+
+
 _det_model = None
+
+
 def get_det_model():
     """Lazy-load YOLO 權重，只初始化一次"""
     global _det_model
@@ -152,6 +157,9 @@ def get_best_ocr_texts(
     best_name = max(score_combined, key=score_combined.get)
     return version_results[best_name], best_name, score_dict[best_name]
 
+
+# Don't use this function, it will consume a lot CPU.
+# Although it will make Pill Detection accu to 100%, only under few cases will need fallback.
 
 def _fallback_rembg_crop(input_img):
     """
@@ -244,7 +252,10 @@ def _pick_crop_from_boxes(input_img, boxes):
 
     cropped = input_img[y1:y2, x1:x2]
     return cropped
+
+
 import time  # 確保你有加上這行
+
 
 def process_image(img_path: str):
     """
@@ -263,8 +274,6 @@ def process_image(img_path: str):
     # === 分出 RGB 給顏色分析用 ===
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)  # ✅ RGB 給顏色分析
 
-    # === 讀取模型（已快取）===
-    det_model = get_det_model()
 
     # === 用 BGR 做 YOLO 偵測 ===
     input_img = image_bgr.copy()
@@ -298,8 +307,8 @@ def process_image(img_path: str):
     # crop_t0 = time.perf_counter()
     boxes = res.boxes
     if boxes is not None and boxes.xyxy.shape[0] > 0:
-        cropped_bgr = _pick_crop_from_boxes(input_img, boxes)     # 給 OCR/encode
-        cropped_rgb = _pick_crop_from_boxes(image_rgb, boxes)     # 給顏色分析
+        cropped_bgr = _pick_crop_from_boxes(input_img, boxes)  # 給 OCR/encode
+        cropped_rgb = _pick_crop_from_boxes(image_rgb, boxes)  # 給顏色分析
         det_src = "yolo_conf_0.25"
         # print("YOLO 0.25")
     else:
@@ -345,7 +354,7 @@ def process_image(img_path: str):
     # print(f"⏱️ OCR 多版本辨識：{(t5 - t4)*1000:.1f} ms")
 
     # === 中央區域顏色分析（比例切 + 內縮） ===
-    CENTER_RATIO = 0.6   # 取短邊的 60% 當中心方塊
+    CENTER_RATIO = 0.6  # 取短邊的 60% 當中心方塊
     MARGIN_RATIO = 0.06  # 裁切圖四邊內縮 6%
 
     h, w = cropped_rgb.shape[:2]

@@ -241,9 +241,6 @@ def register_routes(app, data_status):
 
             # === 5. 呼叫核心辨識邏輯（傳圖片路徑）===
 
-
-
-
             result = process_image(temp_path) or {}
             t5 = time.perf_counter()
             # 如果 process_image 回傳錯誤 → 不要丟 500，直接回應 JSON
@@ -278,6 +275,7 @@ def register_routes(app, data_status):
                     os.remove(temp_path)
             except Exception as e:
                 print(f"⚠️ [UPLOAD] 臨時檔清理失敗：{e}")
+
     @app.route("/api/status")
     def api_status():
         return jsonify({
@@ -368,7 +366,7 @@ def register_routes(app, data_status):
             # print("[DEBUG] STEP 4 - Shape", shape)
             # 進行 OCR 比對 - 這個函數需要你實作或匯入
             # === 有文字：先用正常門檻比對 ===
-            print(f"🟡 [MATCH] 有文字，要進行比對 ➜ {texts}")
+            # print(f"🟡 [MATCH] 有文字，要進行比對 ➜ {texts}")
             # match_result = match_ocr_to_front_back_by_permuted_ocr(texts, df_sub, threshold=HARD_THRESHOLD)
 
             top_matches = match_top_n_ocr_to_front_back(texts, df_sub, threshold=HARD_THRESHOLD, top_n=4)

@@ -18,12 +18,6 @@ try:
 except Exception as e:
     print(f"Error importing Flask-CORS: {e}")
 
-
-
-# __init__.py
-
-
-
 def create_app():
     base_dir = os.getcwd()
     template_folder = os.path.join(base_dir, "app", "templates")

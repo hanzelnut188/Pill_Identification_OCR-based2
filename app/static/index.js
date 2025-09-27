@@ -83,41 +83,7 @@ async function Detection(imageData) {
             img.style.display = 'block';
             container.appendChild(img);
         }
-        // === 顏色偵測 Debug ===
-        const dbg = result.debug || {};
-        const dbgBox = document.getElementById('debugColorBox');
 
-        if (dbg.center_b64 || dbg.center_overlay_b64) {
-            dbgBox.style.display = 'block';
-
-            if (dbg.center_b64) {
-                document.getElementById('imgCenterPatch').src = dbg.center_b64;
-            } else {
-                document.getElementById('imgCenterPatch').removeAttribute('src');
-            }
-
-            if (dbg.center_overlay_b64) {
-                document.getElementById('imgCenterOverlay').src = dbg.center_overlay_b64;
-            } else {
-                document.getElementById('imgCenterOverlay').removeAttribute('src');
-            }
-
-            if (dbg.center_size) {
-                document.getElementById('txtCenterSize').textContent =
-                    `中心大小: ${dbg.center_size[0]} × ${dbg.center_size[1]} px (K=${dbg.k}, min_ratio=${dbg.min_ratio})`;
-            } else {
-                document.getElementById('txtCenterSize').textContent = '';
-            }
-
-            if (dbg.cropped_size) {
-                document.getElementById('txtCroppedSize').textContent =
-                    `完整裁切: ${dbg.cropped_size[0]} × ${dbg.cropped_size[1]} px`;
-            } else {
-                document.getElementById('txtCroppedSize').textContent = '';
-            }
-        } else {
-            dbgBox.style.display = 'none';
-        }
 
         // 將辨識結果填回下拉
         const colors = result['顏色'] || [];
@@ -130,20 +96,6 @@ async function Detection(imageData) {
     }
 }
 
-
-function showDrugDetail(drug) {
-    // 更新左側圖片
-    document.getElementById('modalDrugImage').src = drug.drug_image || '';
-
-    // 更新右側文字資訊
-    document.getElementById('modalDrugName').innerText = drug.name;
-    document.getElementById('modalSymptoms').innerText = drug.symptoms;
-    document.getElementById('modalPrecautions').innerText = drug.precautions;
-    document.getElementById('modalSideEffects').innerText = drug.side_effects;
-
-    // 隱藏候選列表 (可選，或保留讓使用者再切換)
-    // document.getElementById('modalCandidates').style.display = 'none';
-}
 
 confirmButton.addEventListener('click', async () => {
     const selectedText = textField.value.trim();

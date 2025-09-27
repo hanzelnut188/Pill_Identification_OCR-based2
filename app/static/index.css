@@ -15,14 +15,14 @@ body {
     min-height: 100vh;
     height: auto;
     overflow-y: auto;
-    background: #cebba0;
+    background: #b8ddbb;
     padding: 10px;
 }
 
 .container {
     text-align: center;
     padding: 2vw; /* 使用視窗寬度的百分比 */
-    background: #c9b281;
+    background:  #dcefe0;
     box-shadow: 0 0.4vw 0.8vw rgba(0, 0, 0, 0.1); /* 使用視窗寬度的百分比 */
     border-radius: 0.8vw; /* 使用視窗寬度的百分比 */
     width: 80vw; /* 使用視窗寬度的百分比 */
@@ -60,9 +60,13 @@ body {
     font-family: monospace;
     font-size: 20px;
     font-weight: bold;
-    color: #472601;
     text-align: center;
-    background-color: rgb(255, 243, 212);
+    background-color: #ffffff;
+    color: #2f4f2f;
+    border-radius: 6px;
+
+
+
     padding: 10px;
     clear: both;
 }
@@ -524,4 +528,53 @@ html { -webkit-text-size-adjust: 100%; }
         margin: 20px auto 0;
         transform: none !important;
     }
+}
+.title-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;   /* 讓文字在中間 */
+    align-items: center;
+    margin-bottom: 20px;
+    width: 100%;
+}
+.title-icon {
+    position: absolute;
+    top: 0;        /* 貼齊上邊 */
+    height: auto;
+}
+
+/* 左圖獨立控制 */
+.left-icon {
+    left: 0;
+    width: 60px;   /* ✅ 你自己可以改 */
+}
+
+/* 右圖獨立控制 */
+.right-icon {
+    right: 0;
+    width: 70px;   /* ✅ 你自己可以改 */
+}
+
+
+#title {
+    background-color: #fff3d4;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    color: #472601;
+    font-size: 20px;
+    text-align: center;
+}
+
+
+
+#title {
+    font-family: monospace;
+    font-size: 20px;
+    font-weight: bold;
+    color: #2f4f2f;
+    text-align: center;
+    background-color: #ffffff;
+    padding: 10px 30px;
+    border-radius: 6px;
 }

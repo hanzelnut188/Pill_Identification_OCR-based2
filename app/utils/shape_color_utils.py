@@ -303,4 +303,3 @@ def detect_shape_from_image(cropped_img, original_img=None, expected_shape=None)
 
 
 ratios_list = []
-# 以上SHAN版###
