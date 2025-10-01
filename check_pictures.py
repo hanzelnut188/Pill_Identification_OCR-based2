@@ -10,7 +10,7 @@ PICTURE_ROOT = Path(r"C:\Users\92102\OneDrive - NTHU\桌面\大三下\畢業專�
 REPORT_PATH = Path("reports/missing_pictures.xlsx")
 
 # 支援的副檔名
-VALID_EXTS = {".jpg", ".jpeg", ".png", ".heic", ".heif"}
+VALID_EXTS = {".jpg"}
 
 
 def check_pictures(excel_path: Path, image_root: Path):
@@ -26,18 +26,18 @@ def check_pictures(excel_path: Path, image_root: Path):
             continue
 
         matches = list(image_root.glob(f"{code}.*"))
-        matches = [p for p in matches if p.suffix.lower() in VALID_EXTS]
+        matches = [p for p in matches if p.suffix in VALID_EXTS]
 
         if not matches:
             missing.append({"批價碼": code, "學名": name})
         else:
             # 有圖片但沒有 .jpg
-            has_jpg = any(p.suffix.lower() == ".jpg" for p in matches)
+            has_jpg = any(p.suffix == ".jpg" for p in matches)
             if not has_jpg:
                 not_jpg_only.append({
                     "批價碼": code,
                     "學名": name,
-                    "圖片副檔名": ", ".join(sorted(set(p.suffix.lower() for p in matches)))
+                    "圖片副檔名": ", ".join(sorted(set(p.suffix for p in matches)))
                 })
 
     # 輸出統計

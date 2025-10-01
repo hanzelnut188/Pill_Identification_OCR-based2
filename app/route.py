@@ -416,12 +416,20 @@ def register_routes(app, data_status):
             # === 正常門檻有結果：走原本路徑 ===
             # === 正常門檻有結果：組成多筆 candidates 回傳 ===
             results = []
+            seen = set()  # ✅ 用來記錄已經加入的藥物
+
             for match in top_matches:
                 row = match["row"]
                 if isinstance(row, pd.Series):
                     row = row.to_dict()
 
-                picture_path = os.path.join("data/pictures", f"{row.get('批價碼', '')}.jpg")
+                # ✅ 用「批價碼」作為唯一識別
+                drug_id = row.get("批價碼", "")
+                if not drug_id or drug_id in seen:
+                    continue
+                seen.add(drug_id)
+
+                picture_path = os.path.join("data/pictures", f"{drug_id}.jpg")
                 picture_base64 = ""
                 if os.path.exists(picture_path):
                     try:
@@ -443,6 +451,7 @@ def register_routes(app, data_status):
 
             print(f"🟢 [MATCH] Top-{len(results)} 比對完成，準備回傳")
             return jsonify({"candidates": results}), 200
+
 
         except Exception as e:
             import traceback
