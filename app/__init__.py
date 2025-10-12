@@ -111,28 +111,28 @@ def create_app():
         color_dict, shape_dict, invalid_colors = generate_color_shape_dicts(df)
         app.color_dict = color_dict
         app.shape_dict = shape_dict
-        # ###以下可刪
-        # # === Color statistics (per designed buckets) ===
-        # COLOR_BUCKETS = ["白色","透明","黑色","棕色","紅色","橘色","皮膚色","黃色","綠色","藍色","紫色","粉紅色","灰色"]
-        #
-        # # Count UNIQUE drugs mapped to each color (e.g., unique '用量排序' ids).
-        # color_counts = {c: 0 for c in COLOR_BUCKETS}
-        # try:
-        #     for c in COLOR_BUCKETS:
-        #         vals = color_dict.get(c, [])
-        #         # Use a set to avoid double-counting the same drug if it appears multiple times
-        #         color_counts[c] = len(set(vals)) if hasattr(vals, "__iter__") else int(vals)
-        #     # expose on app for other routes / debug
-        #     app.color_counts = color_counts
-        #
-        #     # Console summary (always includes zeros)
-        #     summary = " | ".join(f"{c}:{int(color_counts[c])}" for c in COLOR_BUCKETS)
-        #     print("📊 顏色→藥物數量統計（Excel/字典基準）", summary)
-        #
-        # except Exception as e:
-        #     print(f"⚠️ Color counting failed: {e}")
-        #     app.color_counts = {c: 0 for c in COLOR_BUCKETS}
-        # ###以上可刪
+        ###以下可刪
+        # === Color statistics (per designed buckets) ===
+        COLOR_BUCKETS = ["白色","黃色","黑色","棕色","紅色","透明","皮膚色","橘色","綠色","藍色","紫色","粉紅色","灰色"]
+
+        # Count UNIQUE drugs mapped to each color (e.g., unique '用量排序' ids).
+        color_counts = {c: 0 for c in COLOR_BUCKETS}
+        try:
+            for c in COLOR_BUCKETS:
+                vals = color_dict.get(c, [])
+                # Use a set to avoid double-counting the same drug if it appears multiple times
+                color_counts[c] = len(set(vals)) if hasattr(vals, "__iter__") else int(vals)
+            # expose on app for other routes / debug
+            app.color_counts = color_counts
+
+            # Console summary (always includes zeros)
+            summary = " | ".join(f"{c}:{int(color_counts[c])}" for c in COLOR_BUCKETS)
+            print("📊 顏色→藥物數量統計（Excel/字典基準）", summary)
+
+        except Exception as e:
+            print(f"⚠️ Color counting failed: {e}")
+            app.color_counts = {c: 0 for c in COLOR_BUCKETS}
+        ###以上可刪
 
     except Exception as e:
         print(f"✗ Error loading data: {e}")
