@@ -16,9 +16,8 @@ from PIL import Image
 from pillow_heif import register_heif_opener
 from app.utils.matcher import match_ocr_to_front_back_by_permuted_ocr, lcs_score
 
-register_heif_opener()  # ✅ 全域註冊 HEIC 支援
-# 假設這些是從其他模組匯入的變數和函數
-# 你需要根據實際情況調整匯入
+register_heif_opener()  # register HEIC
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 from app.utils.pill_detection import process_image
@@ -32,7 +31,7 @@ def safe_get(row, key):
 
 
 def get_fallback_html():
-    """簡化的回退 HTML"""
+    """Fallback to HTML if fail"""
     return """<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -68,13 +67,13 @@ def get_fallback_html():
     <div class="container">
         <h1>🏥 Medical Detection APP</h1>
         <div class="status">
-            <h3>✅ 服務正常運行中</h3>
+            <h3>服務正常運行中</h3>
             <p>後端 API 已啟動並可接收請求</p>
             <p>使用簡化模板顯示</p>
         </div>
         <div class="links">
-            <a href="/debug">🔍 查看除錯資訊</a>
-            <a href="/api/status">📊 API 狀態</a>
+            <a href="/debug">查看除錯資訊</a>
+            <a href="/api/status">API 狀態</a>
         </div>
         <div style="margin-top: 2rem; font-size: 0.9rem; color: #666;">
             <p>如果您是開發者，請檢查模板文件是否正確配置</p>
