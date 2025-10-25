@@ -301,6 +301,9 @@ def register_routes(app, data_status):
             colors = data.get("colors", [])
             shape = data.get("shape", "")
 
+            from app.utils.color_utils import expand_colors, collapse_colors  # wherever you put it
+            expanded_colors = expand_colors(colors)
+
             if df.empty:
                 print("🔴 [MATCH] 錯誤：資料庫未載入")
                 return jsonify({"error": "資料庫未載入"}), 500
@@ -309,7 +312,7 @@ def register_routes(app, data_status):
             candidates = set()
             # --- 顏色交集 ---
             color_sets = []
-            for color in colors:
+            for color in expanded_colors:
                 ids = set(color_dict.get(color, []))
                 print(f"    - 顏色篩選：{color} ➜ {len(ids)} 筆")
                 color_sets.append(ids)
@@ -436,6 +439,10 @@ def register_routes(app, data_status):
                             picture_base64 = f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode('utf-8')}"
                     except Exception as e:
                         print(f"Error reading picture {picture_path}: {e}")
+                # === COLLAPSE COLORS BEFORE RETURN ===
+                
+                matched_colors = match.get("matched_colors", [])  # you need to have this from your matching step
+                frontend_colors = collapse_colors(matched_colors)
 
                 results.append({
                     "name": safe_get(row, "學名"),
@@ -445,7 +452,8 @@ def register_routes(app, data_status):
                     "drug_image": picture_base64,
                     "score": round(match["score"], 3),
                     "match": match["match"],
-                    "side": match["side"]
+                    "side": match["side"],
+                    "顏色": frontend_colors
                 })
 
             print(f"🟢 [MATCH] Top-{len(results)} 比對完成，準備回傳")

@@ -92,17 +92,17 @@ def get_basic_color_name(rgb):
 
     # Hue ranges
     if (h < 20 or h >= 330) and s > 70 and r > 50:
-        return "紅色"
+        return "紅色與紅粉色"
     elif (s < 35 and 35 < v < 220) or ((196 < h < 250) and s < 100 and v < 100):
         return "灰色"
 
         # return "灰色"
     elif h < 40 or (h > 195 and v < 100):
         # elif h < 40 and r < 240:
-        return "棕色" if v < 80 else "橘色"
+        return "棕色" if v < 80 else "橘色與黃色"
 
     elif h < 75:
-        return "黃色"
+        return "橘色與黃色"
     elif h < 195:  # green and blue only, need to add s and v
         return "綠色"
     elif h < 250:
@@ -110,7 +110,7 @@ def get_basic_color_name(rgb):
     elif h < 300:  # candidate for pink (270–330)
         return "紫色"
     elif h < 360:  # candidate for pink (270–330)
-        return "粉紅色"
+        return "紅色與紅粉色"
     else:
         return "其他"
 
