@@ -23,18 +23,19 @@ Recommended environment setup:
 ```sh
 conda create -n pill_env python=3.10
 conda activate pill_env
-
+```
 
 ## 📦 Installation
 1. Install all required dependencies:
 
 ```sh
 pip install -r requirements.txt
-
+```
 2. Run the Flask backend:
 
 ```sh
 python main.py
+```
 
 ## 👥 Authors
 - **Shanzelig Putra Wijaya**  
