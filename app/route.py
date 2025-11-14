@@ -318,7 +318,7 @@ def register_routes(app, data_status):
                 color_sets.append(ids)
 
             if color_sets:
-                candidates = set.intersection(*color_sets)
+                candidates = set.union(*color_sets)
                 print(f"    ✅ 顏色交集後 ➜ {len(candidates)} 筆")
             else:
                 candidates = set()
