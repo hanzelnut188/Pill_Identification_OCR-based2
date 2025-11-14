@@ -1,7 +1,7 @@
 # AI-Based Pill Image Recognition System
 
 This project implements an AI-driven pill image recognition system capable of identifying medications based on **OCR text extraction**, **YOLO-based shape detection**, and **HSV-based color analysis**.  
-It is designed to assist users—especially elderly patients—in quickly and safely identifying pills from images.
+It is designed to assist users; especially elderly patients quickly and safely identifying pills from images.
 
 ---
 
